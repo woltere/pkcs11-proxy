@@ -1,6 +1,7 @@
 Source: pkcs11-proxy
 Priority: extra
 Maintainer: Corentin Chary <cchary@commonit.com>
+Uploaders: Leif Johansson <leifj@mnt.se>
 Build-Depends: cdbs, debhelper (>= 6), cmake
 Standards-Version: 3.8.0
 Section: libs
