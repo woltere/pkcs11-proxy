@@ -16,4 +16,7 @@ void gck_rpc_layer_uninitialize(void);
 /* Accept a new connection. Should be called when above fd has read */
 void gck_rpc_layer_accept(void);
 
+/* Run a single connection off of STDIN - call from inetd or stunnel */
+void gck_rpc_layer_inetd(void);
+
 #endif /* GCKRPC_LAYER_H_ */

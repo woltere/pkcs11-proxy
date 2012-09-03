@@ -63,6 +63,8 @@ typedef struct _CallState {
 	uint64_t appid;
 	int call;
 	int sock;
+        int (*read)(int, unsigned char *,size_t);
+        int (*write)(int, unsigned char *,size_t);
 } CallState;
 
 typedef struct _DispatchState {
@@ -2097,7 +2099,7 @@ static void run_dispatch_loop(CallState *cs)
 	assert(cs->sock != -1);
 
 	/* The client application */
-	if (!read_all(cs->sock, (unsigned char *)&cs->appid, sizeof (cs->appid))) {
+	if (!cs->read(cs->sock, (unsigned char *)&cs->appid, sizeof (cs->appid))) {
 		gck_rpc_warn("Can't read appid\n");
 		return ;
 	}
@@ -2116,7 +2118,7 @@ static void run_dispatch_loop(CallState *cs)
 		call_reset(cs);
 
 		/* Read the number of bytes ... */
-		if (!read_all(cs->sock, buf, 4))
+		if (!cs->read(cs->sock, buf, 4))
 			break;
 
 		/* Calculate the number of bytes */
@@ -2135,7 +2137,7 @@ static void run_dispatch_loop(CallState *cs)
 		}
 
 		/* ... and read/parse in the actual message */
-		if (!read_all(cs->sock, cs->req->buffer.buf, len))
+		if (!cs->read(cs->sock, cs->req->buffer.buf, len))
 			break;
 
 		egg_buffer_add_empty(&cs->req->buffer, len);
@@ -2149,8 +2151,8 @@ static void run_dispatch_loop(CallState *cs)
 
 		/* .. send back response length, and then response data */
 		egg_buffer_encode_uint32(buf, cs->resp->buffer.len);
-		if (!write_all(cs->sock, buf, 4) ||
-		    !write_all(cs->sock, cs->resp->buffer.buf, cs->resp->buffer.len))
+		if (!cs->write(cs->sock, buf, 4) ||
+		    !cs->write(cs->sock, cs->resp->buffer.buf, cs->resp->buffer.len))
 			break;
 	}
 
@@ -2221,6 +2223,8 @@ void gck_rpc_layer_accept(void)
 
 	ds->socket = new_fd;
 	ds->cs.sock = new_fd;
+        ds->cs.read = &read_all;
+        ds->cs.write = &write_all;
 
 	error = pthread_create(&ds->thread, NULL,
 			       run_dispatch_thread, &(ds->cs));
@@ -2234,6 +2238,18 @@ void gck_rpc_layer_accept(void)
 	ds->next = pkcs11_dispatchers;
 	pkcs11_dispatchers = ds;
 	pthread_mutex_unlock(&pkcs11_dispatchers_mutex);
+}
+
+void gck_rpc_layer_inetd(void)
+{
+   CallState cs;
+
+   memset(&cs, 0, sizeof(cs));
+   cs.sock = STDIN_FILENO;
+   cs.read = &read;
+   cs.write = &write;
+
+   run_dispatch_thread(&cs);
 }
 
 int gck_rpc_layer_initialize(const char *prefix, CK_FUNCTION_LIST_PTR module)

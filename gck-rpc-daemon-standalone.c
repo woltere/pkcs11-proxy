@@ -58,7 +58,7 @@ static int is_running = 1;
 
 static int usage(void)
 {
-	fprintf(stderr, "usage: gck-rpc-daemon pkcs11-module\n");
+	fprintf(stderr, "usage: pkcs11-daemon pkcs11-module [<socket>|\"-\"]\n\tUsing \"-\" results in a single-thread inetd-type daemon\n");
 	exit(2);
 }
 
@@ -73,7 +73,7 @@ int main(int argc, char *argv[])
 	CK_RV rv;
 
 	/* The module to load is the argument */
-	if (argc != 2)
+	if (argc != 2 || argc != 3)
 		usage();
 
 	/* Load the library */
@@ -113,15 +113,20 @@ int main(int argc, char *argv[])
 	}
 
 	path = getenv("PKCS11_DAEMON_SOCKET");
-	if (!path)
-		path = SOCKET_PATH;
+	if (!path && argc == 3)
+           path = argv[2];
+        if (!path)
+	   path = SOCKET_PATH;
 
-	sock = gck_rpc_layer_initialize(path, funcs);
-	if (sock == -1)
-		exit(1);
+        if (strcmp(path,"-") == 0) {
+           gck_rpc_layer_inetd();
+        } else {
+	   sock = gck_rpc_layer_initialize(path, funcs);
+	   if (sock == -1)
+		   exit(1);
 
-	is_running = 1;
-	while (is_running) {
+	   is_running = 1;
+	   while (is_running) {
 		FD_ZERO(&read_fds);
 		FD_SET(sock, &read_fds);
 		ret = select(sock + 1, &read_fds, NULL, NULL, NULL);
@@ -135,9 +140,10 @@ int main(int argc, char *argv[])
 
 		if (FD_ISSET(sock, &read_fds))
 			gck_rpc_layer_accept();
-	}
+	   }
 
-	gck_rpc_layer_uninitialize();
+	   gck_rpc_layer_uninitialize();
+        }
 
 	rv = (funcs->C_Finalize) (NULL);
 	if (rv != CKR_OK)
