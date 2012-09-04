@@ -1,9 +1,10 @@
-pkcs11-proxy (0.1) unstable; urgency=low
+pkcs11-proxy (0.2-1ubuntu1) precise; urgency=low
 
   [ Corentin Chary ]
   * Initial release.
 
   [ Leif Johansson ]
   * Make it build without the opt prefix
+  * support for calling pkcs11-daemon from inetd/stunnel directly
 
- -- Leif Johansson <leifj@mnt.se>  Sat, 31 Mar 2012 22:33:03 +0200
+ -- Leif Johansson <leifj@sunet.se>  Tue, 04 Sep 2012 09:02:52 +0200
