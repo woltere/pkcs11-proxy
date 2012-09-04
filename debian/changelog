@@ -1,3 +1,10 @@
+pkcs11-proxy (0.3-1seccomp-ubuntu2) precise; urgency=low
+
+  * disable debugging by default 
+  * use syslog instead of stderr unless DEBUG_OUTPUT is 1
+
+ -- Leif Johansson <leifj@sunet.se>  Tue, 04 Sep 2012 15:37:57 +0200
+
 pkcs11-proxy (0.3-1ubuntu~seccomp1) precise; urgency=low
 
   [ Corentin Chary ]
