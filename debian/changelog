@@ -1,4 +1,4 @@
-pkcs11-proxy (0.3-1seccomp-ubuntu2) precise; urgency=low
+pkcs11-proxy (0.3-1ubuntu2) precise; urgency=low
 
   * disable debugging by default 
   * use syslog instead of stderr unless DEBUG_OUTPUT is 1
