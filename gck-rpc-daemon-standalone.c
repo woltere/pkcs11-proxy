@@ -73,7 +73,7 @@ int main(int argc, char *argv[])
 	CK_RV rv;
 
 	/* The module to load is the argument */
-	if (argc != 2 || argc != 3)
+	if (argc != 2 && argc != 3)
 		usage();
 
 	/* Load the library */
