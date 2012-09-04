@@ -1,4 +1,4 @@
-pkcs11-proxy (0.2-1ubuntu~seccomp2) precise; urgency=low
+pkcs11-proxy (0.3-1ubuntu~seccomp1) precise; urgency=low
 
   [ Corentin Chary ]
   * debian: remove commonit specific stuff
