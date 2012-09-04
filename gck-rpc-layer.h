@@ -17,6 +17,6 @@ void gck_rpc_layer_uninitialize(void);
 void gck_rpc_layer_accept(void);
 
 /* Run a single connection off of STDIN - call from inetd or stunnel */
-void gck_rpc_layer_inetd(void);
+void gck_rpc_layer_inetd(CK_FUNCTION_LIST_PTR funcs);
 
 #endif /* GCKRPC_LAYER_H_ */

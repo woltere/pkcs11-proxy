@@ -119,7 +119,7 @@ int main(int argc, char *argv[])
 	   path = SOCKET_PATH;
 
         if (strcmp(path,"-") == 0) {
-           gck_rpc_layer_inetd();
+           gck_rpc_layer_inetd(funcs);
         } else {
 	   sock = gck_rpc_layer_initialize(path, funcs);
 	   if (sock == -1)

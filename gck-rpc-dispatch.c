@@ -101,7 +101,7 @@ void gck_rpc_log(const char *msg, ...)
 	va_list ap;
 
 	va_start(ap, msg);
-	vfprintf(stdout, msg, ap);
+	vfprintf(stderr, msg, ap);
 	printf("\n");
 	va_end(ap);
 }
@@ -2240,7 +2240,7 @@ void gck_rpc_layer_accept(void)
 	pthread_mutex_unlock(&pkcs11_dispatchers_mutex);
 }
 
-void gck_rpc_layer_inetd(void)
+void gck_rpc_layer_inetd(CK_FUNCTION_LIST_PTR module)
 {
    CallState cs;
 
@@ -2248,6 +2248,8 @@ void gck_rpc_layer_inetd(void)
    cs.sock = STDIN_FILENO;
    cs.read = &read;
    cs.write = &write;
+
+   pkcs11_module = module;
 
    run_dispatch_thread(&cs);
 }
