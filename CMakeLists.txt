@@ -7,7 +7,7 @@ endif(COMMAND cmake_policy)
 project (pkcs11 C)
 
 set(PKCS11_PROXY_SRCS gck-rpc-module.c gck-rpc-message.c gck-rpc-util.c egg-buffer.c)
-set(PKCS11_DAEMON_SRCS egg-buffer.c gck-rpc-daemon-standalone.c gck-rpc-dispatch.c gck-rpc-message.c gck-rpc-util.c)
+set(PKCS11_DAEMON_SRCS egg-buffer.c gck-rpc-daemon-standalone.c gck-rpc-dispatch.c gck-rpc-message.c gck-rpc-util.c syscall-reporter.c syscall-names.h)
 
 add_definitions(-Wall)
 add_library(pkcs11-proxy SHARED ${PKCS11_PROXY_SRCS})
@@ -38,3 +38,8 @@ target_link_libraries (pkcs11-daemon dl pthread)
 
 install_targets (/lib pkcs11-proxy)
 install_targets (/bin pkcs11-daemon)
+
+add_custom_command(
+   OUTPUT syscall-names.h 
+   COMMAND ${CMAKE_SOURCE_DIR}/mksyscalls.sh
+   WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
