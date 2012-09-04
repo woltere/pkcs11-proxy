@@ -48,6 +48,7 @@
 #include <unistd.h>
 #include <errno.h>
 #include <stdio.h>
+#include <syslog.h>
 
 /* Where we dispatch the calls to */
 static CK_FUNCTION_LIST_PTR pkcs11_module = NULL;
@@ -83,8 +84,9 @@ static pthread_mutex_t pkcs11_dispatchers_mutex = PTHREAD_MUTEX_INITIALIZER;
 /* -----------------------------------------------------------------------------
  * LOGGING and DEBUGGING
  */
-#undef DEBUG_OUTPUT
+#ifndef DEBUG_OUTPUT
 #define DEBUG_OUTPUT 1
+#endif
 #if DEBUG_OUTPUT
 #define debug(x) gck_rpc_debug x
 #else
@@ -101,7 +103,11 @@ void gck_rpc_log(const char *msg, ...)
 	va_list ap;
 
 	va_start(ap, msg);
+#if DEBUG_OUTPUT
 	vfprintf(stderr, msg, ap);
+#else
+        vsyslog(LOG_INFO,msg,ap);        
+#endif
 	printf("\n");
 	va_end(ap);
 }

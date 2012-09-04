@@ -1,6 +1,8 @@
 #ifndef CONFIG_H
 # define CONFIG_H
 
+# define DEBUG_OUTPUT 0 // change to 1 to enable debugging
+
 #ifdef __MINGW32__
 
 # include <stdint.h>

@@ -36,6 +36,8 @@
 #include <dlfcn.h>
 #include <pthread.h>
 
+#include <syslog.h>
+
 #ifdef __MINGW32__
 # include <winsock2.h>
 #endif
@@ -138,6 +140,8 @@ int main(int argc, char *argv[])
 	/* The module to load is the argument */
 	if (argc != 2 && argc != 3)
 		usage();
+
+        openlog("pkcs11-proxy",LOG_CONS|LOG_PID,LOG_DAEMON);
 
 	/* Load the library */
 	module = dlopen(argv[1], RTLD_NOW);
