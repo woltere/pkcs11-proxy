@@ -1,3 +1,17 @@
+pkcs11-proxy (0.2-1ubuntu~seccomp2) precise; urgency=low
+
+  [ Corentin Chary ]
+  * debian: remove commonit specific stuff
+
+  [ Andre Grueneberg ]
+  * Compile in normal debian environment
+  * Error in SetPIN
+
+  [ Leif Johansson ]
+  * basic seccmp filter
+
+ -- Leif Johansson <leifj@klapautius.mnt.se>  Tue, 04 Sep 2012 13:37:56 +0200
+
 pkcs11-proxy (0.2-1ubuntu1) precise; urgency=low
 
   [ Corentin Chary ]
