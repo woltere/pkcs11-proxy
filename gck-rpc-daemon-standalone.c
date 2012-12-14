@@ -32,6 +32,7 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
+#include <signal.h>
 
 #include <dlfcn.h>
 #include <pthread.h>
@@ -111,6 +112,7 @@ static int install_syscall_filter(void)
 		ALLOW_SYSCALL(set_robust_list),
 		ALLOW_SYSCALL(recvfrom),
 		ALLOW_SYSCALL(madvise),
+		ALLOW_SYSCALL(rt_sigaction),
 		KILL_PROCESS,
 	};
 	struct sock_fprog prog = {
@@ -152,6 +154,11 @@ static int usage(void)
 {
 	fprintf(stderr, "usage: pkcs11-daemon pkcs11-module [<socket>|\"-\"]\n\tUsing \"-\" results in a single-thread inetd-type daemon\n");
 	exit(2);
+}
+
+void termination_handler (int signum)
+{
+	is_running = 0;
 }
 
 int main(int argc, char *argv[])
@@ -224,6 +231,10 @@ int main(int argc, char *argv[])
 	   sock = gck_rpc_layer_initialize(path, funcs);
 	   if (sock == -1)
 		   exit(1);
+
+	/* Shut down gracefully on SIGTERM. */
+	if (signal (SIGTERM, termination_handler) == SIG_IGN)
+		signal (SIGTERM, SIG_IGN);
 
 	   is_running = 1;
 	   while (is_running) {
