@@ -105,10 +105,10 @@ void gck_rpc_log(const char *msg, ...)
 	va_start(ap, msg);
 #if DEBUG_OUTPUT
 	vfprintf(stderr, msg, ap);
+	fprintf(stderr, "\n");
 #else
         vsyslog(LOG_INFO,msg,ap);        
 #endif
-	printf("\n");
 	va_end(ap);
 }
 
