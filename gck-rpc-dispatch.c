@@ -72,7 +72,6 @@ typedef struct _DispatchState {
 	struct _DispatchState *next;
 	pthread_t thread;
 	CallState cs;
-	int socket;
 } DispatchState;
 
 /* A linked list of dispatcher threads */
@@ -884,11 +883,12 @@ static CK_RV rpc_C_Finalize(CallState * cs)
 		if (c->sock == cs->sock)
 			continue ;
 		if (c->req &&
-		    c->req->call_id == GCK_RPC_CALL_C_WaitForSlotEvent) {
-			gck_rpc_log("Sending interuption signal to %d\n",
-                                    ds->socket);
-			if (ds->socket)
-				shutdown(ds->socket, SHUT_RDWR);
+		    (c->req->call_id == GCK_RPC_CALL_C_WaitForSlotEvent)) {
+			gck_rpc_log("Sending interuption signal to %i\n",
+                                    c->sock);
+			if (c->sock != -1)
+				if (shutdown(c->sock, SHUT_RDWR) == 0)
+					c->sock = -1;
 			//pthread_kill(ds->thread, SIGINT);
 		}
 	}
@@ -2203,7 +2203,8 @@ void gck_rpc_layer_accept(void)
 	/* Cleanup any completed dispatch threads */
 	pthread_mutex_lock(&pkcs11_dispatchers_mutex);
 	for (here = &pkcs11_dispatchers, ds = *here; ds != NULL; ds = *here) {
-		if (ds->socket == -1) {
+		CallState *c = &ds->cs;
+		if (c && c->sock == -1) {
 			pthread_join(ds->thread, NULL);
 			*here = ds->next;
 			free(ds);
@@ -2227,7 +2228,6 @@ void gck_rpc_layer_accept(void)
 		return;
 	}
 
-	ds->socket = new_fd;
 	ds->cs.sock = new_fd;
         ds->cs.read = &read_all;
         ds->cs.write = &write_all;
@@ -2421,15 +2421,19 @@ void gck_rpc_layer_uninitialize(void)
 	/* Stop all of the dispatch threads */
 	pthread_mutex_lock(&pkcs11_dispatchers_mutex);
 	for (ds = pkcs11_dispatchers; ds; ds = next) {
+		CallState *c = &ds->cs;
 		next = ds->next;
 
 		/* Forcibly shutdown the connection */
-		if (ds->socket)
-			shutdown(ds->socket, SHUT_RDWR);
+		if (c && c->sock != -1)
+			if (shutdown(c->sock, SHUT_RDWR) == 0)
+				c->sock = -1;
+
 		pthread_join(ds->thread, NULL);
 
 		/* This is always closed by dispatch thread */
-		assert(ds->socket == -1);
+		if (c)
+			assert(c->sock == -1);
 		free(ds);
 	}
 	pthread_mutex_unlock(&pkcs11_dispatchers_mutex);
