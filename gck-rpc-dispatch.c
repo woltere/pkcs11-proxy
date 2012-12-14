@@ -2295,7 +2295,7 @@ int gck_rpc_layer_initialize(const char *prefix, CK_FUNCTION_LIST_PTR module)
 	if (!strncmp("tcp://", prefix, 6)) {
 		int one = 1, port;
 		char *p = NULL;
-		const char *ip;
+		char *ip;
 
 		ip = strdup(prefix + 6);
 		if (ip == NULL) {
