@@ -2298,14 +2298,12 @@ int gck_rpc_layer_initialize(const char *prefix, CK_FUNCTION_LIST_PTR module)
 		const char *ip;
 
 		ip = strdup(prefix + 6);
-		if (ip)
-			p = strchr(ip, ':');
-
-		if (!ip) {
-			gck_rpc_warn("invalid syntax for pkcs11 socket : %s",
-				     prefix);
+		if (ip == NULL) {
+			gck_rpc_warn("out of memory");
 			return -1;
 		}
+
+		p = strchr(ip, ':');
 
 		if (p) {
 			*p = '\0';
@@ -2323,7 +2321,7 @@ int gck_rpc_layer_initialize(const char *prefix, CK_FUNCTION_LIST_PTR module)
 
                 if (setsockopt(sock, IPPROTO_TCP, TCP_NODELAY,
                                (char *)&one, sizeof (one)) == -1) {
-                        gck_rpc_warn("couldn't create set pkcs11 "
+                        gck_rpc_warn("couldn't set pkcs11 "
 				 "socket options : %s", strerror (errno));
                         return -1;
                 }
@@ -2331,7 +2329,7 @@ int gck_rpc_layer_initialize(const char *prefix, CK_FUNCTION_LIST_PTR module)
 		if (setsockopt(sock, SOL_SOCKET, SO_REUSEADDR,
                                (char *)&one, sizeof(one)) == -1) {
 			gck_rpc_warn
-			    ("couldn't create set pkcs11 socket options : %s",
+			    ("couldn't set pkcs11 socket options : %s",
 			     strerror(errno));
 			return -1;
 		}
