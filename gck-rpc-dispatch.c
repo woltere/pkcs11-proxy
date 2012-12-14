@@ -2346,6 +2346,8 @@ int gck_rpc_layer_initialize(const char *prefix, CK_FUNCTION_LIST_PTR module)
 
 		snprintf(pkcs11_socket_path, sizeof(pkcs11_socket_path),
 			 "%s", prefix);
+
+		free(ip);
 	} else {
 		snprintf(pkcs11_socket_path, sizeof(pkcs11_socket_path),
 			 "%s/socket.pkcs11", prefix);
