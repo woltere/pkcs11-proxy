@@ -214,9 +214,11 @@ proto_read_byte_buffer(CallState * cs, CK_BYTE_PTR * buffer,
 	*n_buffer = length;
 	*buffer = NULL;
 
-	/* If set to zero, then they just want the length */
-	if (!length)
-		return CKR_OK;
+	/* We go ahead and allocate a buffer even if length is zero. The code used
+	 * to just return CKR_OK without allocating a buffer, but that breaks a
+	 * test case in pkcs11-tool for C_GenerateRandom of 0 bytes. Best to be as
+	 * transparent as possible and let the p11 module decide how to handle it.
+	 */
 
 	*buffer = call_alloc(cs, length * sizeof(CK_BYTE));
 	if (!*buffer)
