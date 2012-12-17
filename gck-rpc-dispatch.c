@@ -548,8 +548,8 @@ static CK_RV proto_read_null_string(CallState * cs, CK_UTF8CHAR_PTR * val)
 	    (&msg->buffer, msg->parsed, &msg->parsed, &data, &n_data))
 		return PARSE_ERROR;
 
-	/* Allocate a block of memory for it */
-	*val = call_alloc(cs, n_data);
+	/* Allocate a block of memory for it. The +1 accomodates the NULL byte. */
+	*val = call_alloc(cs, n_data + 1);
 	if (!*val)
 		return CKR_DEVICE_MEMORY;
 
