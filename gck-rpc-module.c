@@ -1334,6 +1334,7 @@ static CK_RV rpc_C_Finalize(CK_VOID_PTR reserved)
 
 static CK_RV rpc_C_GetInfo(CK_INFO_PTR info)
 {
+	return_val_if_fail(pkcs11_initialized, CKR_CRYPTOKI_NOT_INITIALIZED);
 	return_val_if_fail(info, CKR_ARGUMENTS_BAD);
 
 	BEGIN_CALL(C_GetInfo);
@@ -1352,6 +1353,7 @@ static CK_RV
 rpc_C_GetSlotList(CK_BBOOL token_present, CK_SLOT_ID_PTR slot_list,
 		  CK_ULONG_PTR count)
 {
+	return_val_if_fail(pkcs11_initialized, CKR_CRYPTOKI_NOT_INITIALIZED);
 	return_val_if_fail(count, CKR_ARGUMENTS_BAD);
 
 	BEGIN_CALL(C_GetSlotList);
@@ -1364,6 +1366,7 @@ rpc_C_GetSlotList(CK_BBOOL token_present, CK_SLOT_ID_PTR slot_list,
 
 static CK_RV rpc_C_GetSlotInfo(CK_SLOT_ID id, CK_SLOT_INFO_PTR info)
 {
+	return_val_if_fail(pkcs11_initialized, CKR_CRYPTOKI_NOT_INITIALIZED);
 	return_val_if_fail(info, CKR_ARGUMENTS_BAD);
 
 	BEGIN_CALL(C_GetSlotInfo);
@@ -1375,6 +1378,7 @@ static CK_RV rpc_C_GetSlotInfo(CK_SLOT_ID id, CK_SLOT_INFO_PTR info)
 
 static CK_RV rpc_C_GetTokenInfo(CK_SLOT_ID id, CK_TOKEN_INFO_PTR info)
 {
+	return_val_if_fail(pkcs11_initialized, CKR_CRYPTOKI_NOT_INITIALIZED);
 	return_val_if_fail(info, CKR_ARGUMENTS_BAD);
 
 	BEGIN_CALL(C_GetTokenInfo);
@@ -1388,6 +1392,7 @@ static CK_RV
 rpc_C_GetMechanismList(CK_SLOT_ID id, CK_MECHANISM_TYPE_PTR mechanism_list,
 		       CK_ULONG_PTR count)
 {
+	return_val_if_fail(pkcs11_initialized, CKR_CRYPTOKI_NOT_INITIALIZED);
 	return_val_if_fail(count, CKR_ARGUMENTS_BAD);
 
 	BEGIN_CALL(C_GetMechanismList);
@@ -1403,6 +1408,7 @@ static CK_RV
 rpc_C_GetMechanismInfo(CK_SLOT_ID id, CK_MECHANISM_TYPE type,
 		       CK_MECHANISM_INFO_PTR info)
 {
+	return_val_if_fail(pkcs11_initialized, CKR_CRYPTOKI_NOT_INITIALIZED);
 	return_val_if_fail(info, CKR_ARGUMENTS_BAD);
 
 	BEGIN_CALL(C_GetMechanismInfo);
@@ -1443,6 +1449,7 @@ rpc_C_OpenSession(CK_SLOT_ID id, CK_FLAGS flags, CK_VOID_PTR user_data,
 		  CK_NOTIFY callback, CK_SESSION_HANDLE_PTR session)
 {
 	return_val_if_fail(session, CKR_ARGUMENTS_BAD);
+	return_val_if_fail(pkcs11_initialized, CKR_CRYPTOKI_NOT_INITIALIZED);
 
 	BEGIN_CALL(C_OpenSession);
 	IN_ULONG(id);
@@ -1487,6 +1494,7 @@ static CK_RV rpc_C_CancelFunction(CK_SESSION_HANDLE session)
 static CK_RV
 rpc_C_GetSessionInfo(CK_SESSION_HANDLE session, CK_SESSION_INFO_PTR info)
 {
+	return_val_if_fail(pkcs11_initialized, CKR_CRYPTOKI_NOT_INITIALIZED);
 	return_val_if_fail(info, CKR_ARGUMENTS_BAD);
 
 	BEGIN_CALL(C_GetSessionInfo);
@@ -1572,6 +1580,7 @@ static CK_RV
 rpc_C_CreateObject(CK_SESSION_HANDLE session, CK_ATTRIBUTE_PTR template,
 		   CK_ULONG count, CK_OBJECT_HANDLE_PTR new_object)
 {
+	return_val_if_fail(pkcs11_initialized, CKR_CRYPTOKI_NOT_INITIALIZED);
 	return_val_if_fail(new_object, CKR_ARGUMENTS_BAD);
 
 	BEGIN_CALL(C_CreateObject);
@@ -2169,6 +2178,7 @@ static CK_RV
 rpc_C_GenerateRandom(CK_SESSION_HANDLE session, CK_BYTE_PTR random_data,
 		     CK_ULONG random_len)
 {
+	return_val_if_fail(pkcs11_initialized, CKR_CRYPTOKI_NOT_INITIALIZED);
 	BEGIN_CALL(C_GenerateRandom);
 	IN_ULONG(session);
 	IN_BYTE_BUFFER(random_data, &random_len);
