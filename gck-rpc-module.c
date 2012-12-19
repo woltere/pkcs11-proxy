@@ -1448,8 +1448,10 @@ static CK_RV
 rpc_C_OpenSession(CK_SLOT_ID id, CK_FLAGS flags, CK_VOID_PTR user_data,
 		  CK_NOTIFY callback, CK_SESSION_HANDLE_PTR session)
 {
-	return_val_if_fail(session, CKR_ARGUMENTS_BAD);
 	return_val_if_fail(pkcs11_initialized, CKR_CRYPTOKI_NOT_INITIALIZED);
+	/* It is unnecessarily intrusive to check session here. Leave it to the p11 module.
+	 * return_val_if_fail(session, CKR_ARGUMENTS_BAD);
+	 */
 
 	BEGIN_CALL(C_OpenSession);
 	IN_ULONG(id);
@@ -1581,6 +1583,8 @@ rpc_C_CreateObject(CK_SESSION_HANDLE session, CK_ATTRIBUTE_PTR template,
 		   CK_ULONG count, CK_OBJECT_HANDLE_PTR new_object)
 {
 	return_val_if_fail(pkcs11_initialized, CKR_CRYPTOKI_NOT_INITIALIZED);
+	return_val_if_fail(session != CK_INVALID_HANDLE, CKR_SESSION_HANDLE_INVALID);
+	return_val_if_fail(template, CKR_ARGUMENTS_BAD);
 	return_val_if_fail(new_object, CKR_ARGUMENTS_BAD);
 
 	BEGIN_CALL(C_CreateObject);
@@ -1635,6 +1639,9 @@ static CK_RV
 rpc_C_GetAttributeValue(CK_SESSION_HANDLE session, CK_OBJECT_HANDLE object,
 			CK_ATTRIBUTE_PTR template, CK_ULONG count)
 {
+	return_val_if_fail(pkcs11_initialized, CKR_CRYPTOKI_NOT_INITIALIZED);
+	return_val_if_fail(template, CKR_ARGUMENTS_BAD);
+
 	BEGIN_CALL(C_GetAttributeValue);
 	IN_ULONG(session);
 	IN_ULONG(object);
@@ -1671,6 +1678,7 @@ static CK_RV
 rpc_C_FindObjects(CK_SESSION_HANDLE session, CK_OBJECT_HANDLE_PTR objects,
 		  CK_ULONG max_count, CK_ULONG_PTR count)
 {
+	return_val_if_fail(pkcs11_initialized, CKR_CRYPTOKI_NOT_INITIALIZED);
 	return_val_if_fail(count, CKR_ARGUMENTS_BAD);
 
 	BEGIN_CALL(C_FindObjects);
@@ -1684,6 +1692,7 @@ rpc_C_FindObjects(CK_SESSION_HANDLE session, CK_OBJECT_HANDLE_PTR objects,
 
 static CK_RV rpc_C_FindObjectsFinal(CK_SESSION_HANDLE session)
 {
+	return_val_if_fail(pkcs11_initialized, CKR_CRYPTOKI_NOT_INITIALIZED);
 	BEGIN_CALL(C_FindObjectsFinal);
 	IN_ULONG(session);
 	PROCESS_CALL;
@@ -2103,6 +2112,15 @@ rpc_C_GenerateKeyPair(CK_SESSION_HANDLE session, CK_MECHANISM_PTR mechanism,
 		      CK_OBJECT_HANDLE_PTR pub_key,
 		      CK_OBJECT_HANDLE_PTR priv_key)
 {
+	return_val_if_fail(pkcs11_initialized, CKR_CRYPTOKI_NOT_INITIALIZED);
+	return_val_if_fail(session != CK_INVALID_HANDLE, CKR_SESSION_HANDLE_INVALID);
+	return_val_if_fail(mechanism, CKR_ARGUMENTS_BAD);
+	return_val_if_fail(pub_template, CKR_ARGUMENTS_BAD);
+	return_val_if_fail(priv_template, CKR_ARGUMENTS_BAD);
+	return_val_if_fail(priv_template, CKR_ARGUMENTS_BAD);
+	return_val_if_fail(pub_key, CKR_ARGUMENTS_BAD);
+	return_val_if_fail(priv_key, CKR_ARGUMENTS_BAD);
+
 	BEGIN_CALL(C_GenerateKeyPair);
 	IN_ULONG(session);
 	IN_MECHANISM(mechanism);
@@ -2179,6 +2197,8 @@ rpc_C_GenerateRandom(CK_SESSION_HANDLE session, CK_BYTE_PTR random_data,
 		     CK_ULONG random_len)
 {
 	return_val_if_fail(pkcs11_initialized, CKR_CRYPTOKI_NOT_INITIALIZED);
+	return_val_if_fail(random_data, CKR_ARGUMENTS_BAD);
+
 	BEGIN_CALL(C_GenerateRandom);
 	IN_ULONG(session);
 	IN_BYTE_BUFFER(random_data, &random_len);
