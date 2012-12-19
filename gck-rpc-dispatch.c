@@ -80,6 +80,9 @@ static DispatchState *pkcs11_dispatchers = NULL;
 /* A mutex to protect the dispatcher list */
 static pthread_mutex_t pkcs11_dispatchers_mutex = PTHREAD_MUTEX_INITIALIZER;
 
+/* To be able to call C_Finalize from call_uninit. */
+static CK_RV rpc_C_Finalize(CallState *);
+
 /* -----------------------------------------------------------------------------
  * LOGGING and DEBUGGING
  */
@@ -179,6 +182,12 @@ static void call_reset(CallState * cs)
 static void call_uninit(CallState * cs)
 {
 	assert(cs);
+
+	/* Close any open sessions. Without this, the application won't be able
+	 * to reconnect (possibly after a crash).
+	 */
+	if (cs->req)
+		rpc_C_Finalize(cs);
 
 	call_reset(cs);
 
@@ -433,7 +442,7 @@ proto_read_attribute_array(CallState * cs, CK_ATTRIBUTE_PTR * result,
 
 	msg = cs->req;
 
-	/* Make sure this is in the rigth order */
+	/* Make sure this is in the right order */
 	assert(!msg->signature || gck_rpc_message_verify_part(msg, "aA"));
 
 	/* Read the number of attributes */
