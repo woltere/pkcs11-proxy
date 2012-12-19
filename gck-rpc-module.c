@@ -688,7 +688,10 @@ proto_read_attribute_array(GckRpcMessage * msg, CK_ATTRIBUTE_PTR arr,
 	unsigned char validity;
 	CK_RV ret;
 
-	assert(len);
+	/* Removed assertion. len == 0 is valid for some ret's,
+	 * see proto_write_attribute_array().
+	 * assert(len);
+	 */
 	assert(msg);
 
 	/* Make sure this is in the right order */
