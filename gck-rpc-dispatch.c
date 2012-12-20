@@ -730,7 +730,7 @@ static CK_RV proto_write_session_info(CallState * cs, CK_SESSION_INFO_PTR info)
 
 #define END_CALL \
 	_cleanup: \
-		debug (("ret: %d", _ret)); \
+		debug (("ret: 0x%x", _ret)); \
 		return _ret; \
 	}
 
