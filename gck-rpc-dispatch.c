@@ -257,11 +257,12 @@ proto_read_byte_array(CallState * cs, CK_BYTE_PTR * array, CK_ULONG * n_array)
 		return PARSE_ERROR;
 
 	if (!valid) {
+		uint32_t n_size;
 		/* No array, no data, just length */
 		if (!egg_buffer_get_uint32
-		    (&msg->buffer, msg->parsed, &msg->parsed, &n_data))
+		    (&msg->buffer, msg->parsed, &msg->parsed, &n_size))
 			return PARSE_ERROR;
-		*n_array = n_data;
+		*n_array = (size_t) n_size;
 		*array = NULL;
 		return CKR_OK;
 	}
