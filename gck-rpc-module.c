@@ -1073,9 +1073,7 @@ proto_read_sesssion_info(GckRpcMessage * msg, CK_SESSION_INFO_PTR info)
 		{ _ret = CKR_HOST_MEMORY; goto _cleanup; }
 
 #define IN_BYTE_BUFFER(arr, len) \
-	if (len == NULL) \
-		{ _ret = CKR_ARGUMENTS_BAD; goto _cleanup; } \
-	if (!gck_rpc_message_write_byte_buffer (_cs->req, arr ? *len : 0)) \
+	if (!gck_rpc_message_write_byte_buffer (_cs->req, arr, len))	\
 		{ _ret = CKR_HOST_MEMORY; goto _cleanup; }
 
 #define IN_BYTE_ARRAY(arr, len) \
@@ -1720,7 +1718,16 @@ static CK_RV
 rpc_C_Encrypt(CK_SESSION_HANDLE session, CK_BYTE_PTR data, CK_ULONG data_len,
 	      CK_BYTE_PTR encrypted_data, CK_ULONG_PTR encrypted_data_len)
 {
-	return_val_if_fail(encrypted_data_len, CKR_ARGUMENTS_BAD);
+	return_val_if_fail(pkcs11_initialized, CKR_CRYPTOKI_NOT_INITIALIZED);
+	/* From PKCS#11 v2.01 :
+	 *  A call to C_Encrypt always terminates the active encryption operation
+	 *  unless it returns CKR_BUFFER_TOO_SMALL or is a successful call (i.e.,
+	 *  one which returns CKR_OK) to determine the length of the buffer
+	 *  needed to hold the ciphertext.
+	 *
+	 * Thus, we can't reject for example NULL encrypted_data_len, since then
+	 * the encryption operation won't be terminated in the real PKCS#11 module.
+	 */
 
 	BEGIN_CALL(C_Encrypt);
 	IN_ULONG(session);
