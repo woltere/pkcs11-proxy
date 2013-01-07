@@ -2181,7 +2181,6 @@ rpc_C_GenerateKeyPair(CK_SESSION_HANDLE session, CK_MECHANISM_PTR mechanism,
 	return_val_if_fail(mechanism, CKR_ARGUMENTS_BAD);
 	return_val_if_fail(pub_template, CKR_ARGUMENTS_BAD);
 	return_val_if_fail(priv_template, CKR_ARGUMENTS_BAD);
-	return_val_if_fail(priv_template, CKR_ARGUMENTS_BAD);
 	return_val_if_fail(pub_key, CKR_ARGUMENTS_BAD);
 	return_val_if_fail(priv_key, CKR_ARGUMENTS_BAD);
 
