@@ -1550,7 +1550,6 @@ static CK_RV
 rpc_C_GetOperationState(CK_SESSION_HANDLE session, CK_BYTE_PTR operation_state,
 			CK_ULONG_PTR operation_state_len)
 {
-	return_val_if_fail(operation_state_len, CKR_ARGUMENTS_BAD);
 	return_val_if_fail(pkcs11_initialized, CKR_CRYPTOKI_NOT_INITIALIZED);
 
 	BEGIN_CALL(C_GetOperationState);
@@ -1773,7 +1772,6 @@ rpc_C_EncryptUpdate(CK_SESSION_HANDLE session, CK_BYTE_PTR part,
 		    CK_ULONG part_len, CK_BYTE_PTR encrypted_part,
 		    CK_ULONG_PTR encrypted_part_len)
 {
-	return_val_if_fail(encrypted_part_len, CKR_ARGUMENTS_BAD);
 	return_val_if_fail(pkcs11_initialized, CKR_CRYPTOKI_NOT_INITIALIZED);
 
 	BEGIN_CALL(C_EncryptUpdate);
@@ -1789,7 +1787,6 @@ static CK_RV
 rpc_C_EncryptFinal(CK_SESSION_HANDLE session, CK_BYTE_PTR last_part,
 		   CK_ULONG_PTR last_part_len)
 {
-	return_val_if_fail(last_part_len, CKR_ARGUMENTS_BAD);
 	return_val_if_fail(pkcs11_initialized, CKR_CRYPTOKI_NOT_INITIALIZED);
 
 	BEGIN_CALL(C_EncryptFinal);
@@ -1818,7 +1815,6 @@ static CK_RV
 rpc_C_Decrypt(CK_SESSION_HANDLE session, CK_BYTE_PTR enc_data,
 	      CK_ULONG enc_data_len, CK_BYTE_PTR data, CK_ULONG_PTR data_len)
 {
-	return_val_if_fail(data_len, CKR_ARGUMENTS_BAD);
 	return_val_if_fail(pkcs11_initialized, CKR_CRYPTOKI_NOT_INITIALIZED);
 
 	BEGIN_CALL(C_Decrypt);
@@ -1835,7 +1831,6 @@ rpc_C_DecryptUpdate(CK_SESSION_HANDLE session, CK_BYTE_PTR enc_part,
 		    CK_ULONG enc_part_len, CK_BYTE_PTR part,
 		    CK_ULONG_PTR part_len)
 {
-	return_val_if_fail(part_len, CKR_ARGUMENTS_BAD);
 	return_val_if_fail(pkcs11_initialized, CKR_CRYPTOKI_NOT_INITIALIZED);
 
 	BEGIN_CALL(C_DecryptUpdate);
@@ -1851,7 +1846,6 @@ static CK_RV
 rpc_C_DecryptFinal(CK_SESSION_HANDLE session, CK_BYTE_PTR last_part,
 		   CK_ULONG_PTR last_part_len)
 {
-	return_val_if_fail(last_part_len, CKR_ARGUMENTS_BAD);
 	return_val_if_fail(pkcs11_initialized, CKR_CRYPTOKI_NOT_INITIALIZED);
 
 	BEGIN_CALL(C_DecryptFinal);
@@ -1877,7 +1871,6 @@ static CK_RV
 rpc_C_Digest(CK_SESSION_HANDLE session, CK_BYTE_PTR data, CK_ULONG data_len,
 	     CK_BYTE_PTR digest, CK_ULONG_PTR digest_len)
 {
-	return_val_if_fail(digest_len, CKR_ARGUMENTS_BAD);
 	return_val_if_fail(pkcs11_initialized, CKR_CRYPTOKI_NOT_INITIALIZED);
 
 	BEGIN_CALL(C_Digest);
@@ -1917,7 +1910,6 @@ static CK_RV
 rpc_C_DigestFinal(CK_SESSION_HANDLE session, CK_BYTE_PTR digest,
 		  CK_ULONG_PTR digest_len)
 {
-	return_val_if_fail(digest_len, CKR_ARGUMENTS_BAD);
 	return_val_if_fail(pkcs11_initialized, CKR_CRYPTOKI_NOT_INITIALIZED);
 
 	BEGIN_CALL(C_DigestFinal);
@@ -1945,7 +1937,6 @@ static CK_RV
 rpc_C_Sign(CK_SESSION_HANDLE session, CK_BYTE_PTR data, CK_ULONG data_len,
 	   CK_BYTE_PTR signature, CK_ULONG_PTR signature_len)
 {
-	return_val_if_fail(signature_len, CKR_ARGUMENTS_BAD);
 	return_val_if_fail(pkcs11_initialized, CKR_CRYPTOKI_NOT_INITIALIZED);
 
 	BEGIN_CALL(C_Sign);
@@ -1974,7 +1965,6 @@ static CK_RV
 rpc_C_SignFinal(CK_SESSION_HANDLE session, CK_BYTE_PTR signature,
 		CK_ULONG_PTR signature_len)
 {
-	return_val_if_fail(signature_len, CKR_ARGUMENTS_BAD);
 	return_val_if_fail(pkcs11_initialized, CKR_CRYPTOKI_NOT_INITIALIZED);
 
 	BEGIN_CALL(C_SignFinal);
@@ -2004,7 +1994,6 @@ rpc_C_SignRecover(CK_SESSION_HANDLE session, CK_BYTE_PTR data,
 		  CK_ULONG data_len, CK_BYTE_PTR signature,
 		  CK_ULONG_PTR signature_len)
 {
-	return_val_if_fail(signature_len, CKR_ARGUMENTS_BAD);
 	return_val_if_fail(pkcs11_initialized, CKR_CRYPTOKI_NOT_INITIALIZED);
 
 	BEGIN_CALL(C_SignRecover);
@@ -2089,7 +2078,6 @@ rpc_C_VerifyRecover(CK_SESSION_HANDLE session, CK_BYTE_PTR signature,
 		    CK_ULONG signature_len, CK_BYTE_PTR data,
 		    CK_ULONG_PTR data_len)
 {
-	return_val_if_fail(data_len, CKR_ARGUMENTS_BAD);
 	return_val_if_fail(pkcs11_initialized, CKR_CRYPTOKI_NOT_INITIALIZED);
 
 	BEGIN_CALL(C_VerifyRecover);
@@ -2106,7 +2094,6 @@ rpc_C_DigestEncryptUpdate(CK_SESSION_HANDLE session, CK_BYTE_PTR part,
 			  CK_ULONG part_len, CK_BYTE_PTR enc_part,
 			  CK_ULONG_PTR enc_part_len)
 {
-	return_val_if_fail(enc_part_len, CKR_ARGUMENTS_BAD);
 	return_val_if_fail(pkcs11_initialized, CKR_CRYPTOKI_NOT_INITIALIZED);
 
 	BEGIN_CALL(C_DigestEncryptUpdate);
@@ -2123,7 +2110,6 @@ rpc_C_DecryptDigestUpdate(CK_SESSION_HANDLE session, CK_BYTE_PTR enc_part,
 			  CK_ULONG enc_part_len, CK_BYTE_PTR part,
 			  CK_ULONG_PTR part_len)
 {
-	return_val_if_fail(part_len, CKR_ARGUMENTS_BAD);
 	return_val_if_fail(pkcs11_initialized, CKR_CRYPTOKI_NOT_INITIALIZED);
 
 	BEGIN_CALL(C_DecryptDigestUpdate);
@@ -2140,7 +2126,6 @@ rpc_C_SignEncryptUpdate(CK_SESSION_HANDLE session, CK_BYTE_PTR part,
 			CK_ULONG part_len, CK_BYTE_PTR enc_part,
 			CK_ULONG_PTR enc_part_len)
 {
-	return_val_if_fail(enc_part_len, CKR_ARGUMENTS_BAD);
 	return_val_if_fail(pkcs11_initialized, CKR_CRYPTOKI_NOT_INITIALIZED);
 
 	BEGIN_CALL(C_SignEncryptUpdate);
@@ -2157,7 +2142,6 @@ rpc_C_DecryptVerifyUpdate(CK_SESSION_HANDLE session, CK_BYTE_PTR enc_part,
 			  CK_ULONG enc_part_len, CK_BYTE_PTR part,
 			  CK_ULONG_PTR part_len)
 {
-	return_val_if_fail(part_len, CKR_ARGUMENTS_BAD);
 	return_val_if_fail(pkcs11_initialized, CKR_CRYPTOKI_NOT_INITIALIZED);
 
 	BEGIN_CALL(C_DecryptVerifyUpdate);
@@ -2217,7 +2201,6 @@ rpc_C_WrapKey(CK_SESSION_HANDLE session, CK_MECHANISM_PTR mechanism,
 	      CK_OBJECT_HANDLE wrapping_key, CK_OBJECT_HANDLE key,
 	      CK_BYTE_PTR wrapped_key, CK_ULONG_PTR wrapped_key_len)
 {
-	return_val_if_fail(wrapped_key_len, CKR_ARGUMENTS_BAD);
 	return_val_if_fail(pkcs11_initialized, CKR_CRYPTOKI_NOT_INITIALIZED);
 
 	BEGIN_CALL(C_WrapKey);
