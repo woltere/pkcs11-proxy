@@ -460,6 +460,16 @@ proto_read_attribute_array(CallState * cs, CK_ATTRIBUTE_PTR * result,
 	    (&msg->buffer, msg->parsed, &msg->parsed, &n_attrs))
 		return PARSE_ERROR;
 
+	if (! n_attrs) {
+		/* If there are no attributes, it makes most sense to make result
+		 * a NULL pointer. What use could one have of a potentially dangling
+		 * pointer anyways?
+		 */
+		*result = NULL_PTR;
+		*n_result = n_attrs;
+		return CKR_OK;
+	}
+
 	/* Allocate memory for the attribute structures */
 	attrs = call_alloc(cs, n_attrs * sizeof(CK_ATTRIBUTE));
 	if (!attrs)
