@@ -130,8 +130,7 @@ static void parse_arguments(const char *string)
 		return;
 	}
 
-	arg = at = src;
-	for (src = dup; *src; src++) {
+	for (arg = at = src; *src; src++) {
 
 		/* Matching quote */
 		if (quote == *src) {
