@@ -740,6 +740,9 @@ proto_read_attribute_array(GckRpcMessage * msg, CK_ATTRIBUTE_PTR arr,
 					return PARSE_ERROR;
 				}
 				attrlen = value;
+			} else {
+				warning(("failed reading byte array"));
+				return PARSE_ERROR;
 			}
 		}
 
