@@ -1087,6 +1087,9 @@ proto_read_sesssion_info(GckRpcMessage * msg, CK_SESSION_INFO_PTR info)
 #define IN_ULONG_BUFFER(arr, len) \
 	if (len == NULL) \
 		{ _ret = CKR_ARGUMENTS_BAD; goto _cleanup; } \
+	IN_ULONG_BUFFER2(arr, len);
+
+#define IN_ULONG_BUFFER2(arr, len) \
 	if (!gck_rpc_message_write_ulong_buffer (_cs->req, arr ? *len : 0)) \
 		{ _ret = CKR_HOST_MEMORY; goto _cleanup; }
 
@@ -1129,7 +1132,10 @@ proto_read_sesssion_info(GckRpcMessage * msg, CK_SESSION_INFO_PTR info)
 #define OUT_BYTE_ARRAY(arr, len)  \
 	if (len == NULL) \
 		_ret = CKR_ARGUMENTS_BAD; \
-	if (_ret == CKR_OK) \
+	OUT_BYTE_ARRAY2(arr, len);
+
+#define OUT_BYTE_ARRAY2(arr, len)  \
+	if (_ret == CKR_OK)		\
 		_ret = proto_read_byte_array (_cs->resp, (arr), (len), *(len));
 
 #define OUT_ULONG_ARRAY(a, len) \
@@ -1715,7 +1721,7 @@ rpc_C_FindObjects(CK_SESSION_HANDLE session, CK_OBJECT_HANDLE_PTR objects,
 
 	BEGIN_CALL(C_FindObjects);
 	IN_ULONG(session);
-	IN_ULONG_BUFFER(objects, &max_count);
+	IN_ULONG_BUFFER2(objects, &max_count);
 	PROCESS_CALL;
 	*count = max_count;
 	OUT_ULONG_ARRAY(objects, count);
@@ -2274,7 +2280,7 @@ rpc_C_GenerateRandom(CK_SESSION_HANDLE session, CK_BYTE_PTR random_data,
 	IN_ULONG(session);
 	IN_BYTE_BUFFER(random_data, &random_len);
 	PROCESS_CALL;
-	OUT_BYTE_ARRAY(random_data, &random_len);
+	OUT_BYTE_ARRAY2(random_data, &random_len);
 	END_CALL;
 }
 
