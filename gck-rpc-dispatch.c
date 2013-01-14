@@ -2300,57 +2300,6 @@ void gck_rpc_layer_inetd(CK_FUNCTION_LIST_PTR module)
 }
 
 /*
- * Parses prefix into two strings (host and port). Port may be a NULL pointer
- * if none is specified. Since this code does not decode port in any way, a
- * service name works too (but requires other code (like
- * _get_listening_socket()) able to resolve service names).
- *
- * This should work for IPv4 and IPv6 inputs :
- *
- *   0.0.0.0:2345
- *   0.0.0.0
- *   [::]:2345
- *   [::]
- *   [::1]:2345
- *   localhost:2345
- *   localhost
- *
- * Returns 0 on failure, and 1 on success.
- */
-static int _parse_host_port(const char *prefix, char **host, char **port)
-{
-	char *p = NULL;
-	int is_ipv6;
-
-	is_ipv6 = (prefix[0] == '[') ? 1 : 0;
-
-	*host = strdup(prefix + is_ipv6);
-	*port = NULL;
-
-	if (*host == NULL) {
-		gck_rpc_warn("out of memory");
-		return 0;
-	}
-
-	if (is_ipv6 && prefix[0] == '[')
-		p = strchr(*host, ']');
-	else
-		p = strchr(*host, ':');
-
-	if (p) {
-		is_ipv6 = (*p == ']'); /* remember if separator was ']' */
-
-		*p = '\0'; /* replace separator will NULL to terminate *host */
-		*port = p + 1;
-
-		if (is_ipv6 && (**port == ':'))
-			*port = p + 2;
-	}
-
-	return 1;
-}
-
-/*
  * Try to get a listening socket for host and port (host may be either a name or
  * an IP address, as string) and port (a string with a service name or a port
  * number).
@@ -2481,7 +2430,7 @@ int gck_rpc_layer_initialize(const char *prefix, CK_FUNCTION_LIST_PTR module)
 		 */
 		char *host, *port;
 
-		if (! _parse_host_port(prefix + 6, &host, &port)) {
+		if (! gck_rpc_parse_host_port(prefix + 6, &host, &port)) {
 			free(host);
 			return -1;
 		}
