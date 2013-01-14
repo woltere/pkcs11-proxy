@@ -3,6 +3,8 @@
 
 # define DEBUG_OUTPUT 0 // change to 1 to enable debugging
 
+# define PKCS11PROXY_LISTEN_BACKLOG 128
+
 #ifdef __MINGW32__
 
 # include <stdint.h>

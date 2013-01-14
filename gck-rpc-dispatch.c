@@ -40,6 +40,8 @@
 # include <arpa/inet.h>
 # include <netinet/in.h>
 # include <netinet/tcp.h>
+# include <sys/types.h>
+# include <netdb.h>
 #endif
 #include <pthread.h>
 
@@ -2297,6 +2299,150 @@ void gck_rpc_layer_inetd(CK_FUNCTION_LIST_PTR module)
    run_dispatch_thread(&cs);
 }
 
+/*
+ * Parses prefix into two strings (host and port). Port may be a NULL pointer
+ * if none is specified. Since this code does not decode port in any way, a
+ * service name works too (but requires other code (like
+ * _get_listening_socket()) able to resolve service names).
+ *
+ * This should work for IPv4 and IPv6 inputs :
+ *
+ *   0.0.0.0:2345
+ *   0.0.0.0
+ *   [::]:2345
+ *   [::]
+ *   [::1]:2345
+ *   localhost:2345
+ *   localhost
+ *
+ * Returns 0 on failure, and 1 on success.
+ */
+static int _parse_host_port(const char *prefix, char **host, char **port)
+{
+	char *p = NULL;
+	int is_ipv6;
+
+	is_ipv6 = (prefix[0] == '[') ? 1 : 0;
+
+	*host = strdup(prefix + is_ipv6);
+	*port = NULL;
+
+	if (*host == NULL) {
+		gck_rpc_warn("out of memory");
+		return 0;
+	}
+
+	if (is_ipv6 && prefix[0] == '[')
+		p = strchr(*host, ']');
+	else
+		p = strchr(*host, ':');
+
+	if (p) {
+		is_ipv6 = (*p == ']'); /* remember if separator was ']' */
+
+		*p = '\0'; /* replace separator will NULL to terminate *host */
+		*port = p + 1;
+
+		if (is_ipv6 && (**port == ':'))
+			*port = p + 2;
+	}
+
+	return 1;
+}
+
+/*
+ * Try to get a listening socket for host and port (host may be either a name or
+ * an IP address, as string) and port (a string with a service name or a port
+ * number).
+ *
+ * Returns -1 on failure, and the socket fd otherwise.
+ */
+static int _get_listening_socket(char *host, char *port)
+{
+	char hoststr[NI_MAXHOST], portstr[NI_MAXSERV];
+	struct addrinfo *ai, *first, hints;
+	int res, sock, one = 1;
+
+	memset(&hints, 0, sizeof(struct addrinfo));
+	hints.ai_flags = AI_PASSIVE;		/* Want addr for bind() */
+	hints.ai_family = AF_UNSPEC;		/* Either IPv4 or IPv6 */
+	hints.ai_socktype = SOCK_STREAM;	/* Only stream oriented sockets */
+
+	if ((res = getaddrinfo(host, port, &hints, &ai)) < 0) {
+		gck_rpc_warn("couldn't resolve host '%.100s' or service '%.100s' : %.100s\n",
+			     host, port, gai_strerror(res));
+		return -1;
+	}
+
+	sock = -1;
+	first = ai;
+
+	/* Loop through the sockets returned and see if we can find one that accepts
+	 * our options and bind()
+	 */
+	while (ai) {
+		sock = socket(ai->ai_family, ai->ai_socktype, ai->ai_protocol);
+
+		if (sock >= 0) {
+			if (setsockopt(sock, IPPROTO_TCP, TCP_NODELAY,
+				       (char *)&one, sizeof (one)) == -1) {
+				gck_rpc_warn("couldn't set pkcs11 "
+					     "socket protocol options (%.100s %.100s): %.100s",
+					     host, port, strerror (errno));
+				goto next;
+			}
+
+			if (setsockopt(sock, SOL_SOCKET, SO_REUSEADDR,
+				       (char *)&one, sizeof(one)) == -1) {
+				gck_rpc_warn
+					("couldn't set pkcs11 socket options (%.100s %.100s): %.100s",
+					 host, port, strerror(errno));
+				goto next;
+			}
+
+			if (bind(sock, ai->ai_addr, ai->ai_addrlen) == 0)
+				break;
+
+		next:
+			close(sock);
+			sock = -1;
+		}
+		ai = ai->ai_next;
+	}
+
+	if (sock < 0) {
+		gck_rpc_warn("couldn't create pkcs11 socket (%.100s %.100s): %.100s\n",
+			     host, port, strerror(errno));
+		sock = -1;
+		goto out;
+	}
+
+	if (listen(sock, PKCS11PROXY_LISTEN_BACKLOG) < 0) {
+		gck_rpc_warn("couldn't listen on pkcs11 socket (%.100s %.100s): %.100s",
+			     host, port, strerror(errno));
+		sock = -1;
+		goto out;
+	}
+
+	/* Format a string describing the socket we're listening on into pkcs11_socket_path */
+	if ((res = getnameinfo(ai->ai_addr, ai->ai_addrlen,
+			       hoststr, sizeof(hoststr), portstr, sizeof(portstr),
+			       NI_NUMERICHOST | NI_NUMERICSERV)) != 0) {
+		gck_rpc_warn("couldn't call getnameinfo on pkcs11 socket (%.100s %.100s): %.100s",
+			     host, port, gai_strerror(res));
+		sock = -1;
+		goto out;
+	}
+
+	snprintf(pkcs11_socket_path, sizeof(pkcs11_socket_path),
+		 (ai->ai_family == AF_INET6) ? "[%s]:%s" : "%s:%s", hoststr, portstr);
+
+ out:
+	freeaddrinfo(first);
+
+	return sock;
+}
+
 int gck_rpc_layer_initialize(const char *prefix, CK_FUNCTION_LIST_PTR module)
 {
 	struct sockaddr_un addr;
@@ -2330,60 +2476,26 @@ int gck_rpc_layer_initialize(const char *prefix, CK_FUNCTION_LIST_PTR module)
 #endif
 
 	if (!strncmp("tcp://", prefix, 6)) {
-		int one = 1, port;
-		char *p = NULL;
-		char *ip;
+		/*
+		 * TCP socket
+		 */
+		char *host, *port;
 
-		ip = strdup(prefix + 6);
-		if (ip == NULL) {
-			gck_rpc_warn("out of memory");
+		if (! _parse_host_port(prefix + 6, &host, &port)) {
+			free(host);
 			return -1;
 		}
 
-		p = strchr(ip, ':');
-
-		if (p) {
-			*p = '\0';
-			port = strtol(p + 1, NULL, 0);
-		} else
-			port = 0;
-
-		sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-
-		if (sock < 0) {
-			gck_rpc_warn("couldn't create pkcs11 socket: %s",
-				     strerror(errno));
+		if ((sock = _get_listening_socket(host, port)) == -1) {
+			free(host);
 			return -1;
 		}
 
-                if (setsockopt(sock, IPPROTO_TCP, TCP_NODELAY,
-                               (char *)&one, sizeof (one)) == -1) {
-                        gck_rpc_warn("couldn't set pkcs11 "
-				 "socket options : %s", strerror (errno));
-                        return -1;
-                }
-
-		if (setsockopt(sock, SOL_SOCKET, SO_REUSEADDR,
-                               (char *)&one, sizeof(one)) == -1) {
-			gck_rpc_warn
-			    ("couldn't set pkcs11 socket options : %s",
-			     strerror(errno));
-			return -1;
-		}
-
-		addr.sun_family = AF_INET;
-		if (inet_aton(ip, &((struct sockaddr_in *)&addr)->sin_addr) ==
-		    0) {
-			gck_rpc_warn("bad inet address : %s", ip);
-			return -1;
-		}
-		((struct sockaddr_in *)&addr)->sin_port = htons(port);
-
-		snprintf(pkcs11_socket_path, sizeof(pkcs11_socket_path),
-			 "%s", prefix);
-
-		free(ip);
+		free(host);
 	} else {
+		/*
+		 * UNIX domain socket
+		 */
 		snprintf(pkcs11_socket_path, sizeof(pkcs11_socket_path),
 			 "%s/socket.pkcs11", prefix);
 
@@ -2399,34 +2511,18 @@ int gck_rpc_layer_initialize(const char *prefix, CK_FUNCTION_LIST_PTR module)
 		unlink(pkcs11_socket_path);
 		strncpy(addr.sun_path, pkcs11_socket_path,
 			sizeof(addr.sun_path));
-	}
 
-	if (bind(sock, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
-		gck_rpc_warn("couldn't bind to pkcs11 socket: %s: %s",
-			     pkcs11_socket_path, strerror(errno));
-		return -1;
-	}
-
-	if (listen(sock, 128) < 0) {
-		gck_rpc_warn("couldn't listen on pkcs11 socket: %s: %s",
-			     pkcs11_socket_path, strerror(errno));
-		return -1;
-	}
-
-	if (!strncmp("tcp://", prefix, 6)) {
-		struct sockaddr_in sa;
-		socklen_t sa_len;
-
-		sa_len = sizeof(sa);
-
-		if (getsockname(sock, (struct sockaddr *)&sa, &sa_len) == -1) {
-			gck_rpc_warn("getsockname failed on pkcs11 socket: %s: %s",
+		if (bind(sock, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
+			gck_rpc_warn("couldn't bind to pkcs11 socket: %s: %s",
 				     pkcs11_socket_path, strerror(errno));
 			return -1;
 		}
 
-		snprintf(pkcs11_socket_path, sizeof(pkcs11_socket_path),
-			 "%s:%d", inet_ntoa(sa.sin_addr), ntohs(sa.sin_port));
+		if (listen(sock, PKCS11PROXY_LISTEN_BACKLOG) < 0) {
+			gck_rpc_warn("couldn't listen on pkcs11 socket: %s: %s",
+				     pkcs11_socket_path, strerror(errno));
+			return -1;
+		}
 	}
 
 	gck_rpc_log("Listening on: %s\n", pkcs11_socket_path);
