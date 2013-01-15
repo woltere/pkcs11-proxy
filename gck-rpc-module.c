@@ -38,6 +38,7 @@
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <netinet/tcp.h>
+# include <netdb.h>
 #endif
 
 #include <stdlib.h>
@@ -311,6 +312,88 @@ static CK_RV call_read(CallState * cs, unsigned char *data, size_t len)
 	return CKR_OK;
 }
 
+static int _connect_to_host_port(char *host, char *port)
+{
+	char hoststr[NI_MAXHOST], portstr[NI_MAXSERV], hostport[NI_MAXHOST + NI_MAXSERV + 1];
+	struct addrinfo *ai, *first, hints;
+	int res, sock, one = 1;
+
+	memset(&hints, 0, sizeof(struct addrinfo));
+	hints.ai_family = AF_UNSPEC;		/* Either IPv4 or IPv6 */
+	hints.ai_socktype = SOCK_STREAM;	/* Only stream oriented sockets */
+
+	if ((res = getaddrinfo(host, port, &hints, &ai)) < 0) {
+		gck_rpc_warn("couldn't resolve host '%.100s' or service '%.100s' : %.100s\n",
+			     host, port, gai_strerror(res));
+		return -1;
+	}
+
+	sock = -1;
+	first = ai;
+
+	/* Loop through the sockets returned and see if we can find one that accepts
+	 * our options and connect()
+	 */
+	while (ai) {
+		if ((res = getnameinfo(ai->ai_addr, ai->ai_addrlen,
+				       hoststr, sizeof(hoststr), portstr, sizeof(portstr),
+				       NI_NUMERICHOST | NI_NUMERICSERV)) != 0) {
+			gck_rpc_warn("couldn't call getnameinfo on pkcs11 socket (%.100s %.100s): %.100s",
+				     host, port, gai_strerror(res));
+			sock = -1;
+			continue;
+		}
+
+		snprintf(hostport, sizeof(hostport),
+			 (ai->ai_family == AF_INET6) ? "[%s]:%s" : "%s:%s", hoststr, portstr);
+
+		sock = socket(ai->ai_family, ai->ai_socktype, ai->ai_protocol);
+
+		if (sock >= 0) {
+			if (setsockopt(sock, IPPROTO_TCP, TCP_NODELAY,
+				       (char *)&one, sizeof (one)) == -1) {
+				gck_rpc_warn("couldn't set pkcs11 "
+					     "socket protocol options (%.100s): %.100s",
+					     hostport, strerror (errno));
+				goto next;
+			}
+
+#ifndef __MINGW32__
+			/* close on exec */
+			if (fcntl(sock, F_SETFD, 1) == -1) {
+				gck_rpc_warn("couldn't secure socket (%.100s): %.100s",
+					     hostport, strerror(errno));
+				goto next;
+			}
+#endif
+
+			if (connect(sock, ai->ai_addr, ai->ai_addrlen) < 0) {
+				close(sock);
+				warning(("couldn't connect (%.100s): %s",
+					 hostport, strerror(errno)));
+				goto next;
+			}
+
+		next:
+			close(sock);
+			sock = -1;
+		}
+		ai = ai->ai_next;
+	}
+
+	if (sock < 0) {
+		gck_rpc_warn("couldn't create pkcs11 socket (%.100s): %.100s\n",
+			     pkcs11_socket_path, strerror(errno));
+		sock = -1;
+		goto out;
+	}
+
+ out:
+	freeaddrinfo(first);
+
+	return sock;
+}
+
 static CK_RV call_connect(CallState * cs)
 {
 	struct sockaddr_un addr;
@@ -326,45 +409,20 @@ static CK_RV call_connect(CallState * cs)
 	memset(&addr, 0, sizeof(addr));
 
 	if (!strncmp("tcp://", pkcs11_socket_path, 6)) {
-		int one = 1, port;
-		char *p = NULL;
-		const char *ip;
+		char *host, *port;
 
-		ip = strdup(pkcs11_socket_path + 6);
-		if (ip)
-			p = strchr(ip, ':');
-
-		if (!p || !ip) {
-			gck_rpc_warn("invalid syntax for pkcs11 socket : %s",
+		if (! gck_rpc_parse_host_port(pkcs11_socket_path + 6, &host, &port)) {
+			gck_rpc_warn("failed parsing pkcs11 socket : %s",
 				     pkcs11_socket_path);
 			return CKR_DEVICE_ERROR;
 		}
-		*p = '\0';
-		port = strtol(p + 1, NULL, 0);
 
-		sock = socket(AF_INET, SOCK_STREAM, 0);
-
-		if (sock < 0) {
-			gck_rpc_warn("couldn't create pkcs11 socket: %s",
-				     strerror(errno));
+		if ((sock = _connect_to_host_port(host, port)) == -1) {
+			free(host);
 			return CKR_DEVICE_ERROR;
 		}
 
-		if (setsockopt(sock, IPPROTO_TCP, TCP_NODELAY,
-			       (char *)&one, sizeof(one)) == -1) {
-			gck_rpc_warn
-			    ("couldn't create set pkcs11 socket options : %s",
-			     strerror(errno));
-			return CKR_DEVICE_ERROR;
-		}
-
-		addr.sun_family = AF_INET;
-		if (inet_aton(ip, &((struct sockaddr_in *)&addr)->sin_addr) ==
-		    0) {
-			gck_rpc_warn("bad inet address : %s", ip);
-			return CKR_DEVICE_ERROR;
-		}
-		((struct sockaddr_in *)&addr)->sin_port = htons(port);
+		free(host);
 	} else {
 		addr.sun_family = AF_UNIX;
 		strncpy(addr.sun_path, pkcs11_socket_path,
@@ -375,22 +433,23 @@ static CK_RV call_connect(CallState * cs)
 			warning(("couldn't open socket: %s", strerror(errno)));
 			return CKR_DEVICE_ERROR;
 		}
-	}
+
 
 #ifndef __MINGW32__
-        /* close on exec */
-	if (fcntl(sock, F_SETFD, 1) == -1) {
-		close(sock);
-		warning(("couldn't secure socket: %s", strerror(errno)));
-		return CKR_DEVICE_ERROR;
-	}
+		/* close on exec */
+		if (fcntl(sock, F_SETFD, 1) == -1) {
+			close(sock);
+			warning(("couldn't secure socket: %s", strerror(errno)));
+			return CKR_DEVICE_ERROR;
+		}
 #endif
 
-	if (connect(sock, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
-		close(sock);
-		warning(("couldn't connect to: %s: %s", pkcs11_socket_path,
-			 strerror(errno)));
-		return CKR_DEVICE_ERROR;
+		if (connect(sock, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
+			close(sock);
+			warning(("couldn't connect to: %s: %s", pkcs11_socket_path,
+				 strerror(errno)));
+			return CKR_DEVICE_ERROR;
+		}
 	}
 
 	cs->socket = sock;
