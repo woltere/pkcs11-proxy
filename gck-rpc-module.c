@@ -374,6 +374,7 @@ static int _connect_to_host_port(char *host, char *port)
 				goto next;
 			}
 
+			break;
 		next:
 			close(sock);
 			sock = -1;
