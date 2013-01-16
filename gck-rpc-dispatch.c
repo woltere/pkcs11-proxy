@@ -68,6 +68,8 @@ typedef struct _CallState {
 	int sock;
         int (*read)(int, unsigned char *,size_t);
         int (*write)(int, unsigned char *,size_t);
+	struct sockaddr_storage addr;
+	socklen_t addrlen;
 } CallState;
 
 typedef struct _DispatchState {
@@ -2139,17 +2141,27 @@ static int write_all(int sock, unsigned char *data, size_t len)
 static void run_dispatch_loop(CallState *cs)
 {
 	unsigned char buf[4];
-	uint32_t len;
+	uint32_t len, res;
+	char hoststr[NI_MAXHOST], portstr[NI_MAXSERV];
 
 	assert(cs->sock != -1);
+
+	if ((res = getnameinfo((struct sockaddr *) & cs->addr, cs->addrlen,
+			       hoststr, sizeof(hoststr), portstr, sizeof(portstr),
+			       NI_NUMERICHOST | NI_NUMERICSERV)) != 0) {
+		gck_rpc_warn("couldn't call getnameinfo on client addr: %.100s",
+			     gai_strerror(res));
+		hoststr[0] = portstr[0] = '\0';
+	}
 
 	/* The client application */
 	if (!cs->read(cs->sock, (unsigned char *)&cs->appid, sizeof (cs->appid))) {
 		gck_rpc_warn("Can't read appid\n");
 		return ;
 	}
-	gck_rpc_log("New session %d-%d\n", (uint32_t) (cs->appid >> 32),
-		    (uint32_t) cs->appid);
+
+	gck_rpc_log("New session %d-%d (client %s, port %s)\n", (uint32_t) (cs->appid >> 32),
+		    (uint32_t) cs->appid, hoststr, portstr);
 
 	/* Setup our buffers */
 	if (!call_init(cs)) {
@@ -2231,7 +2243,7 @@ static char pkcs11_socket_path[MAXPATHLEN] = { 0, };
 
 void gck_rpc_layer_accept(void)
 {
-	struct sockaddr_un addr;
+	struct sockaddr_storage addr;
 	DispatchState *ds, **here;
 	int error;
 	socklen_t addrlen;
@@ -2270,6 +2282,8 @@ void gck_rpc_layer_accept(void)
 	ds->cs.sock = new_fd;
         ds->cs.read = &read_all;
         ds->cs.write = &write_all;
+	ds->cs.addr = addr;
+	ds->cs.addrlen = addrlen;
 
 	error = pthread_create(&ds->thread, NULL,
 			       run_dispatch_thread, &(ds->cs));
