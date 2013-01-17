@@ -1272,6 +1272,7 @@ static CK_RV rpc_C_Initialize(CK_VOID_PTR init_args)
 		/* pReserved must be NULL */
 		args = init_args;
 
+		/* XXX since we're never going to call the supplied mutex functions, shouldn't we reject them? */
 		/* ALL supplied function pointers need to have the value either NULL or non-NULL. */
 		supplied_ok = (args->CreateMutex == NULL
 			       && args->DestroyMutex == NULL
