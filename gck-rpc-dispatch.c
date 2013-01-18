@@ -59,6 +59,11 @@ static CK_FUNCTION_LIST_PTR pkcs11_module = NULL;
 #define PARSE_ERROR CKR_DEVICE_ERROR
 #define PREP_ERROR  CKR_DEVICE_MEMORY
 
+typedef struct {
+	CK_SESSION_HANDLE id;
+	CK_SLOT_ID slot;
+} SessionState;
+
 typedef struct _CallState {
 	GckRpcMessage *req;
 	GckRpcMessage *resp;
@@ -70,6 +75,10 @@ typedef struct _CallState {
         int (*write)(int, unsigned char *,size_t);
 	struct sockaddr_storage addr;
 	socklen_t addrlen;
+	/* XXX Maybe sessions should be a linked list instead, to remove the hard
+	 * upper limit and reduce typical memory use.
+	 */
+	SessionState sessions[PKCS11PROXY_MAX_SESSION_COUNT];
 } CallState;
 
 typedef struct _DispatchState {
@@ -872,9 +881,7 @@ static CK_RV rpc_C_Initialize(CallState * cs)
 
 static CK_RV rpc_C_Finalize(CallState * cs)
 {
-	CK_SLOT_ID_PTR slots;
-	CK_ULONG n_slots, i;
-	CK_SLOT_ID appartment;
+	CK_ULONG i;
 	CK_RV ret;
 	DispatchState *ds, *next;
 
@@ -888,27 +895,17 @@ static CK_RV rpc_C_Finalize(CallState * cs)
 	 * We don't actually C_Finalize lower layers, since this would finalize
 	 * for all appartments, client applications. Anyway this is done by
 	 * the code that loaded us.
-	 *
-	 * But we do need to cleanup resources used by this client, so instead
-	 * we call C_CloseAllSessions for each appartment for this client.
 	 */
 
-	ret = (pkcs11_module->C_GetSlotList) (TRUE, NULL, &n_slots);
-	if (ret == CKR_OK) {
-		slots = calloc(n_slots, sizeof(CK_SLOT_ID));
-		if (slots == NULL) {
-			ret = CKR_DEVICE_MEMORY;
-		} else {
-			ret =
-			    (pkcs11_module->C_GetSlotList) (TRUE, slots,
-							    &n_slots);
-			for (i = 0; ret == CKR_OK && i < n_slots; ++i) {
-				appartment = slots[i];
-				ret =
-				    (pkcs11_module->
-				     C_CloseAllSessions) (appartment);
-			}
-			free(slots);
+	/* Close all sessions that have been opened by this thread, regardless of slot */
+	for (i = 0; i < PKCS11PROXY_MAX_SESSION_COUNT; i++) {
+		if (cs->sessions[i].id) {
+			gck_rpc_log("Closing session %li on position %i", cs->sessions[i].id, i);
+
+			ret = (pkcs11_module->C_CloseSession) (cs->sessions[i].id);
+			if (ret != CKR_OK)
+				break;
+			cs->sessions[i].id = 0;
 		}
 	}
 
@@ -1067,6 +1064,21 @@ static CK_RV rpc_C_OpenSession(CallState * cs)
 	IN_ULONG(slot_id);
 	IN_ULONG(flags);
 	PROCESS_CALL((slot_id, flags, NULL, NULL, &session));
+	if (_ret == CKR_OK) {
+		int i;
+		/* Remember this thread opened this session. Needed for C_CloseAllSessions. */
+		for (i = 0; i < PKCS11PROXY_MAX_SESSION_COUNT; i++) {
+			if (! cs->sessions[i].id) {
+				cs->sessions[i].id = session;
+				cs->sessions[i].slot = slot_id;
+				gck_rpc_log("Session %li stored in position %i", session, i);
+				break;
+			}
+		}
+		if (i == PKCS11PROXY_MAX_SESSION_COUNT) {
+			_ret = CKR_SESSION_COUNT; goto _cleanup;
+		}
+	}
 	OUT_ULONG(session);
 	END_CALL;
 }
@@ -1078,18 +1090,61 @@ static CK_RV rpc_C_CloseSession(CallState * cs)
 	BEGIN_CALL(C_CloseSession);
 	IN_ULONG(session);
 	PROCESS_CALL((session));
+	if (_ret == CKR_OK) {
+		int i;
+		/* Remove this session from this threads list */
+		for (i = 0; i < PKCS11PROXY_MAX_SESSION_COUNT; i++) {
+			if (cs->sessions[i].id == session) {
+				gck_rpc_log("Session %li removed from position %i", session, i);
+				cs->sessions[i].id = 0;
+				break;
+			}
+		}
+		if (i == PKCS11PROXY_MAX_SESSION_COUNT) {
+			/* Ignore errors, like with close() */
+			gck_rpc_log("C_CloseSession on unknown session");
+		}
+	}
 	END_CALL;
 }
 
 static CK_RV rpc_C_CloseAllSessions(CallState * cs)
 {
 	CK_SLOT_ID slot_id;
+	CK_SLOT_INFO slotInfo;
+	int i;
 
-	/* Slot id becomes appartment so lower layers can tell clients apart. */
+	/* Close all sessions that have been opened by this thread. PKCS#11 (v2.2) says
+	 * C_CloseAllSessions closes all the sessions opened by one application, leaving
+	 * sessions opened by other applications alone even if the sessions share slot.
+	 *
+	 * Each application on the client side of pkcs11-proxy will mean different thread
+	 * on the server side, so we should close all sessions for a slot opened in this
+	 * thread.
+	 */
 
 	BEGIN_CALL(C_CloseAllSessions);
 	IN_ULONG(slot_id);
-	PROCESS_CALL((slot_id));
+
+	/* To emulate real C_CloseAllSessions (well, the SoftHSM one) we check if slot_id is valid. */
+	_ret = pkcs11_module->C_GetSlotInfo(slot_id, &slotInfo);
+	if (_ret != CKR_OK)
+		goto _cleanup;
+
+	for (i = 0; i < PKCS11PROXY_MAX_SESSION_COUNT; i++) {
+		if (cs->sessions[i].id && (cs->sessions[i].slot == slot_id)) {
+			gck_rpc_log("Closing session %li on position %i with slot %i", cs->sessions[i].id, i, slot_id);
+
+			_ret = (pkcs11_module->C_CloseSession) (cs->sessions[i].id);
+			if (_ret == CKR_OK ||
+			    _ret == CKR_SESSION_CLOSED ||
+			    _ret == CKR_SESSION_HANDLE_INVALID) {
+				cs->sessions[i].id = 0;
+			}
+			if (_ret != CKR_OK)
+				goto _cleanup;
+		}
+	}
 	END_CALL;
 }
 
