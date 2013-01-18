@@ -861,6 +861,7 @@ static CK_RV rpc_C_Initialize(CallState * cs)
 
 		/* Check to make sure the header matches */
 		if (n_handshake != GCK_RPC_HANDSHAKE_LEN ||
+		    handshake == NULL_PTR ||
 		    memcmp(handshake, GCK_RPC_HANDSHAKE, n_handshake) != 0) {
 			gck_rpc_warn
 			    ("invalid handshake received from connecting module");
@@ -1978,6 +1979,9 @@ static CK_RV rpc_C_GenerateRandom(CallState * cs)
 	BEGIN_CALL(C_GenerateRandom);
 	IN_ULONG(session);
 	IN_BYTE_BUFFER(random_data, random_len);
+	if (random_len == NULL_PTR) {
+		_ret = PARSE_ERROR; goto _cleanup;
+	}
 	PROCESS_CALL((session, random_data, *random_len));
 	OUT_BYTE_ARRAY(random_data, random_len);
 	END_CALL;
