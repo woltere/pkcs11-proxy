@@ -475,5 +475,8 @@ gck_rpc_message_write_space_string(GckRpcMessage * msg, CK_UTF8CHAR * buffer,
 
 	assert(!msg->signature || gck_rpc_message_verify_part(msg, "s"));
 
+	/* XXX it's not really right to treat UTF-8 input as a byte buffer,
+	 * although CK_UTF8CHAR is currently typedef'd to unsigned char in pkcs11.h.
+	 */
 	return egg_buffer_add_byte_array(&msg->buffer, buffer, length);
 }
