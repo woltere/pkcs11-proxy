@@ -1130,10 +1130,6 @@ proto_read_sesssion_info(GckRpcMessage * msg, CK_SESSION_INFO_PTR info)
 	if (!gck_rpc_message_write_ulong (_cs->req, val)) \
 		{ _ret = CKR_HOST_MEMORY; goto _cleanup; }
 
-#define IN_STRING(val) \
-	if (!gck_rpc_message_write_zero_string (_cs->req, val)) \
-		{ _ret = CKR_HOST_MEMORY; goto _cleanup; }
-
 #define IN_SPACE_STRING(val, len)						\
 	if (!gck_rpc_message_write_space_string (_cs->req, val, len))	\
 		{ _ret = CKR_HOST_MEMORY; goto _cleanup; }

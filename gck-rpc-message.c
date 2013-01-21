@@ -477,13 +477,3 @@ gck_rpc_message_write_space_string(GckRpcMessage * msg, CK_UTF8CHAR * buffer,
 
 	return egg_buffer_add_byte_array(&msg->buffer, buffer, length);
 }
-
-int gck_rpc_message_write_zero_string(GckRpcMessage * msg, CK_UTF8CHAR * string)
-{
-	assert(msg);
-	assert(string);
-
-	assert(!msg->signature || gck_rpc_message_verify_part(msg, "z"));
-
-	return egg_buffer_add_string(&msg->buffer, (const char *)string);
-}

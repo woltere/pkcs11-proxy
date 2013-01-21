@@ -572,35 +572,6 @@ proto_write_attribute_array(CallState * cs, CK_ATTRIBUTE_PTR array,
 	return CKR_OK;
 }
 
-static CK_RV proto_read_null_string(CallState * cs, CK_UTF8CHAR_PTR * val)
-{
-	GckRpcMessage *msg;
-	const unsigned char *data;
-	size_t n_data;
-
-	assert(cs);
-	assert(val);
-
-	msg = cs->req;
-
-	/* Check that we're supposed to have this at this point */
-	assert(!msg->signature || gck_rpc_message_verify_part(msg, "z"));
-
-	if (!egg_buffer_get_byte_array
-	    (&msg->buffer, msg->parsed, &msg->parsed, &data, &n_data))
-		return PARSE_ERROR;
-
-	/* Allocate a block of memory for it. The +1 accomodates the NULL byte. */
-	*val = call_alloc(cs, n_data + 1);
-	if (!*val)
-		return CKR_DEVICE_MEMORY;
-
-	memcpy(*val, data, n_data);
-	(*val)[n_data] = 0;
-
-	return CKR_OK;
-}
-
 static CK_RV proto_read_space_string(CallState * cs, CK_UTF8CHAR_PTR * val, CK_ULONG length)
 {
 	GckRpcMessage *msg;
@@ -804,10 +775,6 @@ static CK_RV proto_write_session_info(CallState * cs, CK_SESSION_INFO_PTR info)
 #define IN_ULONG(val) \
 	if (!gck_rpc_message_read_ulong (cs->req, &val)) \
 		{ _ret = PARSE_ERROR; goto _cleanup; }
-
-#define IN_STRING(val) \
-	_ret = proto_read_null_string (cs, &val); \
-	if (_ret != CKR_OK) goto _cleanup;
 
 #define IN_SPACE_STRING(val, len)			   \
 	_ret = proto_read_space_string (cs, &val, len);	   \

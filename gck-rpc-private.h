@@ -130,7 +130,6 @@ typedef struct _GckRpcCall {
  *  s  = space padded string
  *  v  = CK_VERSION
  *  y  = CK_BYTE
- *  z  = null terminated string
  */
 
 static const GckRpcCall gck_rpc_calls[] = {
@@ -262,9 +261,6 @@ int gck_rpc_message_verify_part(GckRpcMessage * msg, const char *part);
 int gck_rpc_message_write_byte(GckRpcMessage * msg, CK_BYTE val);
 
 int gck_rpc_message_write_ulong(GckRpcMessage * msg, CK_ULONG val);
-
-int gck_rpc_message_write_zero_string(GckRpcMessage * msg,
-				      CK_UTF8CHAR * string);
 
 int gck_rpc_message_write_space_string(GckRpcMessage * msg,
 				       CK_UTF8CHAR * buffer, CK_ULONG length);
