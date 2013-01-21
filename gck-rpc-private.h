@@ -144,7 +144,7 @@ static const GckRpcCall gck_rpc_calls[] = {
 	 "ssssuuuuuuuuuuuvvs"},
 	{GCK_RPC_CALL_C_GetMechanismList, "C_GetMechanismList", "ufu", "au"},
 	{GCK_RPC_CALL_C_GetMechanismInfo, "C_GetMechanismInfo", "uu", "uuu"},
-	{GCK_RPC_CALL_C_InitToken, "C_InitToken", "uayz", ""},
+	{GCK_RPC_CALL_C_InitToken, "C_InitToken", "uays", ""},
 	{GCK_RPC_CALL_C_WaitForSlotEvent, "C_WaitForSlotEvent", "u", "u"},
 	{GCK_RPC_CALL_C_OpenSession, "C_OpenSession", "uu", "u"},
 	{GCK_RPC_CALL_C_CloseSession, "C_CloseSession", "u", ""},
@@ -216,7 +216,7 @@ static const GckRpcCall gck_rpc_calls[] = {
 #endif
 
 #define GCK_RPC_HANDSHAKE \
-	"PRIVATE-GNOME-KEYRING-PKCS11-PROTOCOL-V-2"
+	"PRIVATE-GNOME-KEYRING-PKCS11-PROTOCOL-V-3"
 #define GCK_RPC_HANDSHAKE_LEN \
 	(sizeof (GCK_RPC_HANDSHAKE) - 1)
 

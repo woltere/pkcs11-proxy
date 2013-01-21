@@ -1134,6 +1134,10 @@ proto_read_sesssion_info(GckRpcMessage * msg, CK_SESSION_INFO_PTR info)
 	if (!gck_rpc_message_write_zero_string (_cs->req, val)) \
 		{ _ret = CKR_HOST_MEMORY; goto _cleanup; }
 
+#define IN_SPACE_STRING(val, len)						\
+	if (!gck_rpc_message_write_space_string (_cs->req, val, len))	\
+		{ _ret = CKR_HOST_MEMORY; goto _cleanup; }
+
 #define IN_BYTE_BUFFER(arr, len) \
 	if (!gck_rpc_message_write_byte_buffer (_cs->req, arr, len))	\
 		{ _ret = CKR_HOST_MEMORY; goto _cleanup; }
@@ -1499,7 +1503,7 @@ rpc_C_InitToken(CK_SLOT_ID id, CK_UTF8CHAR_PTR pin, CK_ULONG pin_len,
 	BEGIN_CALL(C_InitToken);
 	IN_ULONG(id);
 	IN_BYTE_ARRAY(pin, pin_len);
-	IN_STRING(label);
+	IN_SPACE_STRING(label, 32);
 	PROCESS_CALL;
 	END_CALL;
 }

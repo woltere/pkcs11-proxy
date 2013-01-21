@@ -601,6 +601,34 @@ static CK_RV proto_read_null_string(CallState * cs, CK_UTF8CHAR_PTR * val)
 	return CKR_OK;
 }
 
+static CK_RV proto_read_space_string(CallState * cs, CK_UTF8CHAR_PTR * val, CK_ULONG length)
+{
+	GckRpcMessage *msg;
+	const unsigned char *data;
+	size_t n_data;
+
+	assert(cs);
+	assert(val);
+
+	msg = cs->req;
+
+	/* Check that we're supposed to have this at this point */
+	assert(!msg->signature || gck_rpc_message_verify_part(msg, "s"));
+
+	if (!egg_buffer_get_byte_array
+	    (&msg->buffer, msg->parsed, &msg->parsed, &data, &n_data))
+		return PARSE_ERROR;
+
+	/* Allocate a block of memory for it. */
+	*val = call_alloc(cs, n_data);
+	if (!*val)
+		return CKR_DEVICE_MEMORY;
+
+	memcpy(*val, data, n_data);
+
+	return CKR_OK;
+}
+
 static CK_RV proto_read_mechanism(CallState * cs, CK_MECHANISM_PTR mech)
 {
 	GckRpcMessage *msg;
@@ -779,6 +807,10 @@ static CK_RV proto_write_session_info(CallState * cs, CK_SESSION_INFO_PTR info)
 
 #define IN_STRING(val) \
 	_ret = proto_read_null_string (cs, &val); \
+	if (_ret != CKR_OK) goto _cleanup;
+
+#define IN_SPACE_STRING(val, len)			   \
+	_ret = proto_read_space_string (cs, &val, len);	   \
 	if (_ret != CKR_OK) goto _cleanup;
 
 #define IN_BYTE_BUFFER(buffer, buffer_len_ptr) \
@@ -1033,7 +1065,7 @@ static CK_RV rpc_C_InitToken(CallState * cs)
 	BEGIN_CALL(C_InitToken);
 	IN_ULONG(slot_id);
 	IN_BYTE_ARRAY(pin, pin_len);
-	IN_STRING(label);
+	IN_SPACE_STRING(label, 32);
 	PROCESS_CALL((slot_id, pin, pin_len, label));
 	END_CALL;
 }

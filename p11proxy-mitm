@@ -95,7 +95,7 @@ request_list = [
     (6, "C_GetTokenInfo", "u", "ssssuuuuuuuuuuuvvs"),
     (7, "C_GetMechanismList", "ufu", "au"),
     (8, "C_GetMechanismInfo", "uu", "uuu"),
-    (9, "C_InitToken", "uayz", ""),
+    (9, "C_InitToken", "uays", ""),
     (10, "C_WaitForSlotEvent", "u", "u"),
     (11, "C_OpenSession", "uu", "u"),
     (12, "C_CloseSession", "u", ""),
