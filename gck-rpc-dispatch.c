@@ -2407,7 +2407,7 @@ void gck_rpc_layer_inetd(CK_FUNCTION_LIST_PTR module)
  *
  * Returns -1 on failure, and the socket fd otherwise.
  */
-static int _get_listening_socket(char *host, char *port)
+static int _get_listening_socket(const char *proto, const char *host, const char *port)
 {
 	char hoststr[NI_MAXHOST], portstr[NI_MAXSERV];
 	struct addrinfo *ai, *first, hints;
@@ -2485,7 +2485,7 @@ static int _get_listening_socket(char *host, char *port)
 	}
 
 	snprintf(pkcs11_socket_path, sizeof(pkcs11_socket_path),
-		 (ai->ai_family == AF_INET6) ? "[%s]:%s" : "%s:%s", hoststr, portstr);
+		 (ai->ai_family == AF_INET6) ? "%s://[%s]:%s" : "%s://%s:%s", proto, hoststr, portstr);
 
  out:
 	freeaddrinfo(first);
@@ -2531,13 +2531,16 @@ int gck_rpc_layer_initialize(const char *prefix, CK_FUNCTION_LIST_PTR module)
 		 * TCP socket
 		 */
 		char *host, *port;
+		char proto[4]; /* strlen("tcp") and strlen("tls") */
+
+		snprintf(proto, sizeof(proto), "%s", prefix);
 
 		if (! gck_rpc_parse_host_port(prefix + 6, &host, &port)) {
 			free(host);
 			return -1;
 		}
 
-		if ((sock = _get_listening_socket(host, port)) == -1) {
+		if ((sock = _get_listening_socket(proto, host, port)) == -1) {
 			free(host);
 			return -1;
 		}
