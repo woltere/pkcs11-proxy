@@ -34,7 +34,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <signal.h>
-#include <fcntl.h> /* for seccomp init */
 
 #include <dlfcn.h>
 #include <pthread.h>
@@ -47,13 +46,12 @@
 
 #define SOCKET_PATH "tcp://127.0.0.1"
 
-#define DEBUG_SECCOMP
-
 #include <seccomp.h>
 //#include "seccomp-bpf.h"
 #ifdef DEBUG_SECCOMP
 # include "syscall-reporter.h"
 #endif /* DEBUG_SECCOMP */
+#include <fcntl.h> /* for seccomp init */
 
 static int install_syscall_filter(const int sock, const char *tls_psk_keyfile, const char *path)
 {
@@ -71,10 +69,12 @@ static int install_syscall_filter(const int sock, const char *tls_psk_keyfile, c
 	 * the syscall-reporter to figure out the rest
 	 */
       	seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(write), 0);
+#ifdef DEBUG_SECCOMP
 	seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(rt_sigreturn), 0);
-#ifdef __NR_sigreturn
+# ifdef __NR_sigreturn
 	seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(sigreturn), 0);
-#endif
+# endif
+#endif /* DEBUG_SECCOMP */
 	seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(exit), 0);
 	seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(exit_group), 0);
 
@@ -97,24 +97,16 @@ static int install_syscall_filter(const int sock, const char *tls_psk_keyfile, c
 	seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(mprotect), 0);
 	seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(clone), 0);
 	seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(set_robust_list), 0);
-	/* "/sys/devices/system/cpu/online" -
-	 * Someone (libpthreads?) is opening this file
-	 */
-	seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(open), 1,
-			 SCMP_A1(SCMP_CMP_EQ, O_RDONLY|O_CLOEXEC));
 	seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(madvise), 0);
 	seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(munlock), 0);
 
 	/*
-	 * TLS-PSK
+	 * Both pthreads (? file is "/sys/devices/system/cpu/online") and TLS-PSK open files.
 	 */
-	if (tls_psk_keyfile)
-		/* Allow open() of the TLS-PSK keyfile. */
-		seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(open), 1,
-				 SCMP_A1(SCMP_CMP_EQ, O_RDONLY));
+	seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(open), 1,
+			 SCMP_A1(SCMP_CMP_EQ, O_RDONLY | O_CLOEXEC));
 
 	seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(close), 0);
-	seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(fstat), 0);
 
 	/*
 	 * UNIX domain socket
@@ -124,6 +116,11 @@ static int install_syscall_filter(const int sock, const char *tls_psk_keyfile, c
 	    strncmp(path, "tls://", strlen("tls://")) != 0)
 		/* XXX only permit unlink(path) */
 		seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(unlink), 0);
+
+	/*
+	 * Syscalls to allow spawned threads to initialize a new (stricter) seccomp policy.
+	 */
+	seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(prctl), 0);
 
 #ifdef DEBUG_SECCOMP
 	/* Dumps the generated BPF rules in sort-of human readable syntax. */

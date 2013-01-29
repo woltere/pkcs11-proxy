@@ -53,6 +53,14 @@
 #include <stdio.h>
 #include <syslog.h>
 
+#include <seccomp.h>
+//#include "seccomp-bpf.h"
+#ifdef DEBUG_SECCOMP
+# include "syscall-reporter.h"
+#endif /* DEBUG_SECCOMP */
+#include <fcntl.h> /* for seccomp init */
+#include <sys/mman.h>
+
 /* Where we dispatch the calls to */
 static CK_FUNCTION_LIST_PTR pkcs11_module = NULL;
 
@@ -97,6 +105,8 @@ static pthread_mutex_t pkcs11_dispatchers_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 /* To be able to call C_Finalize from call_uninit. */
 static CK_RV rpc_C_Finalize(CallState *);
+
+static int _install_dispatch_syscall_filter(int use_tls);
 
 /* -----------------------------------------------------------------------------
  * LOGGING and DEBUGGING
@@ -2295,6 +2305,9 @@ static void *run_dispatch_thread(void *arg)
 	CallState *cs = arg;
 	assert(cs->sock != -1);
 
+	if (_install_dispatch_syscall_filter((cs->tls != NULL)))
+		return NULL;
+
 	run_dispatch_loop(cs);
 
 	/* The thread closes the socket and marks as done */
@@ -2628,4 +2641,69 @@ void gck_rpc_layer_uninitialize(void)
 	pthread_mutex_unlock(&pkcs11_dispatchers_mutex);
 
 	pkcs11_module = NULL;
+}
+
+/*
+ * Reduce the syscalls allowed to a subset of the syscalls allowed for
+ * the parent thread.
+ */
+static int _install_dispatch_syscall_filter(int use_tls)
+{
+	int rc;
+
+#ifdef DEBUG_SECCOMP
+	rc = seccomp_init(SCMP_ACT_TRAP);
+#else
+	rc = seccomp_init(SCMP_ACT_KILL);
+#endif /* DEBUG_SECCOMP */
+	if (rc < 0)
+		goto failure_scmp;
+	/*
+	 * These are the basic syscalls needed to be able to use
+	 * the syscall-reporter to figure out the rest
+	 */
+      	seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(write), 0);
+#ifdef DEBUG_SECCOMP
+	seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(rt_sigreturn), 0);
+# ifdef __NR_sigreturn
+	seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(sigreturn), 0);
+# endif
+#endif /* DEBUG_SECCOMP */
+	seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(exit), 0);
+	seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(exit_group), 0);
+
+	/*
+	 * Network related syscalls.
+	 */
+	seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(read), 0);
+       	seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(sendto), 0);
+
+	/*
+	 * TLS-PSK
+	 */
+	if (use_tls)
+		/* Allow open() of the TLS-PSK keyfile. */
+		seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(open), 1,
+				 SCMP_A1(SCMP_CMP_EQ, O_RDONLY | O_CLOEXEC));
+
+	seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(close), 0);
+
+	/*
+	 * pthreads?
+	 */
+	seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(madvise), 0);
+	seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(mprotect), 1,
+			 SCMP_A2(SCMP_CMP_EQ, PROT_READ|PROT_WRITE));
+
+	rc = seccomp_load();
+	if (rc < 0)
+		goto failure_scmp;
+	seccomp_release();
+
+	return 0;
+
+failure_scmp:
+	errno = -rc;
+	gck_rpc_warn("Seccomp filter initialization failed, errno = %u\n", errno);
+	return errno;
 }
