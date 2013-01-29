@@ -314,11 +314,6 @@ gck_rpc_close_tls(GckRpcTlsPskState *state)
 		SSL_free(state->ssl);
 		state->ssl = NULL;
 	}
-
-	if (state->bio) {
-		BIO_free(state->bio);
-		state->bio = NULL;
-	}
 }
 
 /* Send data using SSL.
