@@ -289,8 +289,11 @@ int main(int argc, char *argv[])
 
 	dlclose(module);
 
-	if (tls)
+	if (tls) {
 		gck_rpc_close_tls(tls);
+		free(tls);
+		tls = NULL;
+	}
 
 	return 0;
 }
