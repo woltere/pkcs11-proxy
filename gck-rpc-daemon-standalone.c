@@ -34,6 +34,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <signal.h>
+#include <fcntl.h> /* for seccomp init */
 
 #include <dlfcn.h>
 #include <pthread.h>
@@ -46,96 +47,106 @@
 
 #define SOCKET_PATH "tcp://127.0.0.1"
 
-#include "seccomp-bpf.h"
-#include "syscall-reporter.h"
+#define DEBUG_SECCOMP
 
-static int install_syscall_filter(void)
+#include <seccomp.h>
+//#include "seccomp-bpf.h"
+#ifdef DEBUG_SECCOMP
+# include "syscall-reporter.h"
+#endif /* DEBUG_SECCOMP */
+
+static int install_syscall_filter(const int sock, const char *tls_psk_keyfile, const char *path)
 {
-	struct sock_filter filter[] = {
-	        /* Validate architecture. */
-		VALIDATE_ARCHITECTURE,
-		/* Grab the system call number. */
-		EXAMINE_SYSCALL,
-		/* List allowed syscalls. */
-		ALLOW_SYSCALL(rt_sigreturn),
-#ifdef __NR_sigreturn
-		ALLOW_SYSCALL(sigreturn),
-#endif
-		ALLOW_SYSCALL(exit_group),
-		ALLOW_SYSCALL(exit),
-		ALLOW_SYSCALL(read),
-		ALLOW_SYSCALL(write),
-                ALLOW_SYSCALL(futex),
-                ALLOW_SYSCALL(brk),
-                ALLOW_SYSCALL(open),
-#ifdef __NR_fstat64
-                ALLOW_SYSCALL(fstat64),
-#else
-                ALLOW_SYSCALL(fstat),
-#endif
-#ifdef __NR_mmap2
-                ALLOW_SYSCALL(mmap2),
-#else
-		ALLOW_SYSCALL(mmap),
-#endif
-                ALLOW_SYSCALL(mprotect),
-                ALLOW_SYSCALL(close),
-                ALLOW_SYSCALL(access),
-                ALLOW_SYSCALL(munmap),
-                ALLOW_SYSCALL(time),
-#ifdef __NR__llseek
-                ALLOW_SYSCALL(_llseek),
-#else
-		ALLOW_SYSCALL(lseek),
-#endif
-#ifdef __NR_stat64
-                ALLOW_SYSCALL(stat64),
-#else
-                ALLOW_SYSCALL(stat),
-#endif
-#ifdef __NR_fcntl64
-                ALLOW_SYSCALL(fcntl64),
-#else
-                ALLOW_SYSCALL(fcntl),
-#endif
-                ALLOW_SYSCALL(mlock),
-                ALLOW_SYSCALL(munlock),
-		ALLOW_SYSCALL(socket),
-		ALLOW_SYSCALL(setsockopt),
-		ALLOW_SYSCALL(bind),
-		ALLOW_SYSCALL(listen),
-		ALLOW_SYSCALL(getsockname),
-		ALLOW_SYSCALL(connect),
-		ALLOW_SYSCALL(sendto),
-		ALLOW_SYSCALL(select),
-		ALLOW_SYSCALL(accept),
-		ALLOW_SYSCALL(clone),
-		ALLOW_SYSCALL(set_robust_list),
-		ALLOW_SYSCALL(recvfrom),
-		ALLOW_SYSCALL(madvise),
-		ALLOW_SYSCALL(rt_sigaction),
-		KILL_PROCESS,
-	};
-	struct sock_fprog prog = {
-		.len = (unsigned short)(sizeof(filter)/sizeof(filter[0])),
-		.filter = filter,
-	};
+	int rc;
 
-	if (prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0)) {
-		perror("prctl(NO_NEW_PRIVS)");
-		goto failed;
-	}
-	if (prctl(PR_SET_SECCOMP, SECCOMP_MODE_FILTER, &prog)) {
-		perror("prctl(SECCOMP)");
-		goto failed;
-	}
+#ifdef DEBUG_SECCOMP
+	rc = seccomp_init(SCMP_ACT_TRAP);
+#else
+	rc = seccomp_init(SCMP_ACT_KILL);
+#endif /* DEBUG_SECCOMP */
+	if (rc < 0)
+		goto failure_scmp;
+	/*
+	 * These are the basic syscalls needed to be able to use
+	 * the syscall-reporter to figure out the rest
+	 */
+      	seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(write), 0);
+	seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(rt_sigreturn), 0);
+#ifdef __NR_sigreturn
+	seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(sigreturn), 0);
+#endif
+	seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(exit), 0);
+	seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(exit_group), 0);
+
+	/*
+	 * Network related syscalls.
+	 */
+	seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(read), 0);
+	seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(select), 0);
+	if (sock)
+		/* Allow accept() only for the listening socket */
+		seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(accept), 1,
+				 SCMP_A0(SCMP_CMP_EQ, sock));
+	seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(sendto), 0);
+
+	/*
+	 * These are probably pthreads-related.
+	 */
+	seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(mmap), 0);
+	seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(munmap), 0);
+	seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(mprotect), 0);
+	seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(clone), 0);
+	seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(set_robust_list), 0);
+	/* "/sys/devices/system/cpu/online" -
+	 * Someone (libpthreads?) is opening this file
+	 */
+	seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(open), 1,
+			 SCMP_A1(SCMP_CMP_EQ, O_RDONLY|O_CLOEXEC));
+	seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(madvise), 0);
+	seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(munlock), 0);
+
+	/*
+	 * TLS-PSK
+	 */
+	if (tls_psk_keyfile)
+		/* Allow open() of the TLS-PSK keyfile. */
+		seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(open), 1,
+				 SCMP_A1(SCMP_CMP_EQ, O_RDONLY));
+
+	seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(close), 0);
+	seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(fstat), 0);
+
+	/*
+	 * UNIX domain socket
+	 */
+	if (path[0] &&
+	    strncmp(path, "tcp://", strlen("tcp://")) != 0 &&
+	    strncmp(path, "tls://", strlen("tls://")) != 0)
+		/* XXX only permit unlink(path) */
+		seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(unlink), 0);
+
+#ifdef DEBUG_SECCOMP
+	/* Dumps the generated BPF rules in sort-of human readable syntax. */
+	seccomp_export_pfc(2);
+
+	/* Print the name of syscalls stopped by seccomp. Should not be used in production. */
+        if (install_syscall_reporter())
+                return 1;
+#endif /* DEBUG_SECCOMP */
+
+	rc = seccomp_load();
+	if (rc < 0)
+		goto failure_scmp;
+	seccomp_release();
+
 	return 0;
 
-failed:
-	if (errno == EINVAL)
-		fprintf(stderr, "SECCOMP_FILTER is not available. :(\n");
-	return 1;
+failure_scmp:
+	errno = -rc;
+	fprintf(stderr, "Seccomp filter initialization failed, errno = %u\n", errno);
+	return errno;
 }
+
 
 #if 0
 /* Sample configuration for loading NSS remotely */
@@ -173,11 +184,6 @@ int main(int argc, char *argv[])
 	CK_RV rv;
 	CK_C_INITIALIZE_ARGS init_args;
 	GckRpcTlsPskState *tls;
-
-        if (install_syscall_reporter())
-                return 1;
-        if (install_syscall_filter())
-        	return 1;
 
 	/* The module to load is the argument */
 	if (argc != 2 && argc != 3)
@@ -232,6 +238,7 @@ int main(int argc, char *argv[])
 
 	/* Initialize TLS, if appropriate */
 	tls = NULL;
+	tls_psk_keyfile = NULL;
 	if (! strncmp("tls://", path, 6)) {
 		tls_psk_keyfile = getenv("PKCS11_PROXY_TLS_PSK_FILE");
 		if (! tls_psk_keyfile || ! tls_psk_keyfile[0]) {
@@ -251,17 +258,30 @@ int main(int argc, char *argv[])
 		}
 	}
 
+	if (strcmp(path,"-") != 0) {
+		/* Do some initialization before enabling seccomp. */
+		sock = gck_rpc_layer_initialize(path, funcs);
+		if (sock == -1)
+			exit(1);
+
+		/* Shut down gracefully on SIGTERM. */
+		if (signal (SIGTERM, termination_handler) == SIG_IGN)
+			signal (SIGTERM, SIG_IGN);
+	} else {
+		sock = 0;
+	}
+
+	/*
+	 * Enable seccomp. This is essentially a whitelist containing all the syscalls
+	 * we expect to call from here on. Anything not whitelisted will cause the
+	 * process to terminate.
+	 */
+        if (install_syscall_filter(sock, tls_psk_keyfile, path))
+        	return 1;
+
         if (strcmp(path,"-") == 0) {
            gck_rpc_layer_inetd(funcs);
         } else {
-	   sock = gck_rpc_layer_initialize(path, funcs);
-	   if (sock == -1)
-		   exit(1);
-
-	   /* Shut down gracefully on SIGTERM. */
-	   if (signal (SIGTERM, termination_handler) == SIG_IGN)
-		   signal (SIGTERM, SIG_IGN);
-
 	   is_running = 1;
 	   while (is_running) {
 		FD_ZERO(&read_fds);
