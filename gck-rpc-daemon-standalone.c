@@ -114,17 +114,32 @@ static int install_syscall_filter(const int sock, const char *tls_psk_keyfile, c
 	if (path[0] &&
 	    strncmp(path, "tcp://", strlen("tcp://")) != 0 &&
 	    strncmp(path, "tls://", strlen("tls://")) != 0)
-		/* XXX only permit unlink(path) */
 		seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(unlink), 0);
 
 	/*
-	 * Syscalls to allow spawned threads to initialize a new (stricter) seccomp policy.
+	 * Allow spawned threads to initialize a new seccomp policy (subset of this).
 	 */
 	seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(prctl), 0);
 
+	/*
+	 * SoftHSM required syscalls
+	 */
+	seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(getcwd), 0);
+	seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(stat), 0);
+	seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(open), 0);
+	seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(fcntl), 0);
+	seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(fstat), 0);
+	seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(lseek), 0);
+	seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(access), 0);
+	seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(fsync), 0);
+	seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(unlink), 0);
+	seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(ftruncate), 0);
+	seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(select), 0);
+	seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(futex), 0);
+
 #ifdef DEBUG_SECCOMP
 	/* Dumps the generated BPF rules in sort-of human readable syntax. */
-	seccomp_export_pfc(2);
+	seccomp_export_pfc(STDERR_FILENO);
 
 	/* Print the name of syscalls stopped by seccomp. Should not be used in production. */
         if (install_syscall_reporter())

@@ -2695,6 +2695,22 @@ static int _install_dispatch_syscall_filter(int use_tls)
 	seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(mprotect), 1,
 			 SCMP_A2(SCMP_CMP_EQ, PROT_READ|PROT_WRITE));
 
+	/*
+	 * SoftHSM
+	 */
+	seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(getcwd), 0);
+	seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(stat), 0);
+	seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(open), 0);
+	seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(fcntl), 0);
+	seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(fstat), 0);
+	seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(lseek), 0);
+	seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(access), 0);
+	seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(fsync), 0);
+	seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(unlink), 0);
+	seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(ftruncate), 0);
+	seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(select), 0);
+	seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(futex), 0);
+
 	rc = seccomp_load();
 	if (rc < 0)
 		goto failure_scmp;
