@@ -265,10 +265,7 @@ gck_rpc_init_tls_psk(GckRpcTlsPskState *state, const char *key_filename,
 
 	assert(caller == GCK_RPC_TLS_PSK_CLIENT || caller == GCK_RPC_TLS_PSK_SERVER);
 
-	if (caller == GCK_RPC_TLS_PSK_CLIENT)
-		state->ssl_ctx = SSL_CTX_new(TLSv1_2_method());
-	else
-		state->ssl_ctx = SSL_CTX_new(TLSv1_2_method());
+	state->ssl_ctx = SSL_CTX_new(TLSv1_2_method());
 
 	if (state->ssl_ctx == NULL) {
 		gck_rpc_warn("can't initialize SSL_CTX");
