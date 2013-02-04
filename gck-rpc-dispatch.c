@@ -909,6 +909,8 @@ static CK_RV rpc_C_Finalize(CallState * cs)
 	 * the code that loaded us.
 	 */
 
+	ret = CKR_OK;
+
 	/* Close all sessions that have been opened by this thread, regardless of slot */
 	for (i = 0; i < PKCS11PROXY_MAX_SESSION_COUNT; i++) {
 		if (cs->sessions[i].id) {
