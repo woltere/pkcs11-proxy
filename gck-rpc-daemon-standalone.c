@@ -88,6 +88,11 @@ static int install_syscall_filter(const int sock, const char *tls_psk_keyfile, c
 		seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(accept), 1,
 				 SCMP_A0(SCMP_CMP_EQ, sock));
 	seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(sendto), 0);
+	if (path[0] &&
+	    strncmp(path, "tcp://", strlen("tcp://")) == 0) {
+		/* TCP socket - not needed for TLS */
+		seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(recvfrom), 0);
+	}
 
 	/*
 	 * These are probably pthreads-related.
@@ -113,8 +118,9 @@ static int install_syscall_filter(const int sock, const char *tls_psk_keyfile, c
 	 */
 	if (path[0] &&
 	    strncmp(path, "tcp://", strlen("tcp://")) != 0 &&
-	    strncmp(path, "tls://", strlen("tls://")) != 0)
+	    strncmp(path, "tls://", strlen("tls://")) != 0) {
 		seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(unlink), 0);
+	}
 
 	/*
 	 * Allow spawned threads to initialize a new seccomp policy (subset of this).
@@ -122,7 +128,7 @@ static int install_syscall_filter(const int sock, const char *tls_psk_keyfile, c
 	seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(prctl), 0);
 
 	/*
-	 * SoftHSM required syscalls
+	 * SoftHSM 1.3.0 required syscalls
 	 */
 	seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(getcwd), 0);
 	seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(stat), 0);

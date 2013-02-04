@@ -2677,6 +2677,7 @@ static int _install_dispatch_syscall_filter(int use_tls)
 	 */
 	seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(read), 0);
        	seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(sendto), 0);
+       	seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(recvfrom), 0);
 
 	/*
 	 * TLS-PSK
@@ -2696,7 +2697,7 @@ static int _install_dispatch_syscall_filter(int use_tls)
 			 SCMP_A2(SCMP_CMP_EQ, PROT_READ|PROT_WRITE));
 
 	/*
-	 * SoftHSM
+	 * SoftHSM 1.3.0
 	 */
 	seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(getcwd), 0);
 	seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(stat), 0);
