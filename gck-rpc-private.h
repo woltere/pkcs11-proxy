@@ -33,9 +33,6 @@
 
 #include "pkcs11/pkcs11.h"
 
-/* Whether to print debug output or not */
-#define DEBUG_OUTPUT 0
-
 /* The calls, must be in sync with array below */
 enum {
 	GCK_RPC_CALL_ERROR = 0,

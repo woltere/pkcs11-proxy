@@ -77,7 +77,6 @@ static char tls_psk_key_filename[MAXPATHLEN] = { 0, };
 /* -----------------------------------------------------------------------------
  * LOGGING and DEBUGGING
  */
-#define DEBUG_OUTPUT 0
 #if DEBUG_OUTPUT
 #define debug(x) gck_rpc_debug x
 #else
