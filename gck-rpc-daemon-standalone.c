@@ -185,6 +185,12 @@ void termination_handler (int signum)
 	is_running = 0;
 }
 
+enum {
+	/* Used to un-confuse clang checker */
+	GCP_RPC_DAEMON_MODE_INETD = 0,
+	GCP_RPC_DAEMON_MODE_SOCKET
+};
+
 int main(int argc, char *argv[])
 {
 	CK_C_GetFunctionList func_get_list;
@@ -192,7 +198,7 @@ int main(int argc, char *argv[])
 	void *module;
 	const char *path, *tls_psk_keyfile;
 	fd_set read_fds;
-	int sock, ret;
+	int sock, ret, mode;
 	CK_RV rv;
 	CK_C_INITIALIZE_ARGS init_args;
 	GckRpcTlsPskState *tls;
@@ -270,7 +276,11 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	if (strcmp(path,"-") != 0) {
+	if (strcmp(path,"-") == 0) {
+		/* inetd mode */
+		sock = 0;
+		mode = GCP_RPC_DAEMON_MODE_INETD;
+	} else {
 		/* Do some initialization before enabling seccomp. */
 		sock = gck_rpc_layer_initialize(path, funcs);
 		if (sock == -1)
@@ -279,8 +289,8 @@ int main(int argc, char *argv[])
 		/* Shut down gracefully on SIGTERM. */
 		if (signal (SIGTERM, termination_handler) == SIG_IGN)
 			signal (SIGTERM, SIG_IGN);
-	} else {
-		sock = 0;
+
+		mode = GCP_RPC_DAEMON_MODE_SOCKET;
 	}
 
 	/*
@@ -291,9 +301,9 @@ int main(int argc, char *argv[])
         if (install_syscall_filter(sock, tls_psk_keyfile, path))
         	return 1;
 
-        if (strcmp(path,"-") == 0) {
+        if (mode == GCP_RPC_DAEMON_MODE_INETD) {
            gck_rpc_layer_inetd(funcs);
-        } else {
+        } else if (mode == GCP_RPC_DAEMON_MODE_SOCKET) {
 	   is_running = 1;
 	   while (is_running) {
 		FD_ZERO(&read_fds);
@@ -312,7 +322,10 @@ int main(int argc, char *argv[])
 	   }
 
 	   gck_rpc_layer_uninitialize();
-        }
+        } else {
+		/* Not reached */
+		exit(-1);
+	}
 
 	rv = (funcs->C_Finalize) (NULL);
 	if (rv != CKR_OK)
