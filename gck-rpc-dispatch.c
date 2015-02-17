@@ -2651,73 +2651,74 @@ void gck_rpc_layer_uninitialize(void)
  */
 static int _install_dispatch_syscall_filter(int use_tls)
 {
-	int rc;
+	int rc = -1;
+	scmp_filter_ctx ctx;
 
 #ifdef DEBUG_SECCOMP
-	rc = seccomp_init(SCMP_ACT_TRAP);
+	ctx = seccomp_init(SCMP_ACT_TRAP);
 #else
-	rc = seccomp_init(SCMP_ACT_KILL);
+	ctx = seccomp_init(SCMP_ACT_KILL);
 #endif /* DEBUG_SECCOMP */
-	if (rc < 0)
+	if (ctx == NULL)
 		goto failure_scmp;
 	/*
 	 * These are the basic syscalls needed to be able to use
 	 * the syscall-reporter to figure out the rest
 	 */
-      	seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(write), 0);
+	seccomp_rule_add(ctx,SCMP_ACT_ALLOW, SCMP_SYS(write), 0);
 #ifdef DEBUG_SECCOMP
-	seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(rt_sigreturn), 0);
+	seccomp_rule_add(ctx,SCMP_ACT_ALLOW, SCMP_SYS(rt_sigreturn), 0);
 # ifdef __NR_sigreturn
-	seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(sigreturn), 0);
+	seccomp_rule_add(ctx,SCMP_ACT_ALLOW, SCMP_SYS(sigreturn), 0);
 # endif
 #endif /* DEBUG_SECCOMP */
-	seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(exit), 0);
-	seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(exit_group), 0);
+	seccomp_rule_add(ctx,SCMP_ACT_ALLOW, SCMP_SYS(exit), 0);
+	seccomp_rule_add(ctx,SCMP_ACT_ALLOW, SCMP_SYS(exit_group), 0);
 
 	/*
 	 * Network related syscalls.
 	 */
-	seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(read), 0);
-       	seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(sendto), 0);
-       	seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(recvfrom), 0);
+	seccomp_rule_add(ctx,SCMP_ACT_ALLOW, SCMP_SYS(read), 0);
+	seccomp_rule_add(ctx,SCMP_ACT_ALLOW, SCMP_SYS(sendto), 0);
+	seccomp_rule_add(ctx,SCMP_ACT_ALLOW, SCMP_SYS(recvfrom), 0);
 
 	/*
 	 * TLS-PSK
 	 */
 	if (use_tls)
 		/* Allow open() of the TLS-PSK keyfile. */
-		seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(open), 1,
+		seccomp_rule_add(ctx,SCMP_ACT_ALLOW, SCMP_SYS(open), 1,
 				 SCMP_A1(SCMP_CMP_EQ, O_RDONLY | O_CLOEXEC));
 
-	seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(close), 0);
+	seccomp_rule_add(ctx,SCMP_ACT_ALLOW, SCMP_SYS(close), 0);
 
 	/*
 	 * pthreads?
 	 */
-	seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(madvise), 0);
-	seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(mprotect), 1,
+	seccomp_rule_add(ctx,SCMP_ACT_ALLOW, SCMP_SYS(madvise), 0);
+	seccomp_rule_add(ctx,SCMP_ACT_ALLOW, SCMP_SYS(mprotect), 1,
 			 SCMP_A2(SCMP_CMP_EQ, PROT_READ|PROT_WRITE));
 
 	/*
 	 * SoftHSM 1.3.0
 	 */
-	seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(getcwd), 0);
-	seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(stat), 0);
-	seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(open), 0);
-	seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(fcntl), 0);
-	seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(fstat), 0);
-	seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(lseek), 0);
-	seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(access), 0);
-	seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(fsync), 0);
-	seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(unlink), 0);
-	seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(ftruncate), 0);
-	seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(select), 0);
-	seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(futex), 0);
+	seccomp_rule_add(ctx,SCMP_ACT_ALLOW, SCMP_SYS(getcwd), 0);
+	seccomp_rule_add(ctx,SCMP_ACT_ALLOW, SCMP_SYS(stat), 0);
+	seccomp_rule_add(ctx,SCMP_ACT_ALLOW, SCMP_SYS(open), 0);
+	seccomp_rule_add(ctx,SCMP_ACT_ALLOW, SCMP_SYS(fcntl), 0);
+	seccomp_rule_add(ctx,SCMP_ACT_ALLOW, SCMP_SYS(fstat), 0);
+	seccomp_rule_add(ctx,SCMP_ACT_ALLOW, SCMP_SYS(lseek), 0);
+	seccomp_rule_add(ctx,SCMP_ACT_ALLOW, SCMP_SYS(access), 0);
+	seccomp_rule_add(ctx,SCMP_ACT_ALLOW, SCMP_SYS(fsync), 0);
+	seccomp_rule_add(ctx,SCMP_ACT_ALLOW, SCMP_SYS(unlink), 0);
+	seccomp_rule_add(ctx,SCMP_ACT_ALLOW, SCMP_SYS(ftruncate), 0);
+	seccomp_rule_add(ctx,SCMP_ACT_ALLOW, SCMP_SYS(select), 0);
+	seccomp_rule_add(ctx,SCMP_ACT_ALLOW, SCMP_SYS(futex), 0);
 
-	rc = seccomp_load();
+	rc = seccomp_load(ctx);
 	if (rc < 0)
 		goto failure_scmp;
-	seccomp_release();
+	seccomp_release(ctx);
 
 	return 0;
 

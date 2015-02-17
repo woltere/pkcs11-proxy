@@ -55,63 +55,64 @@
 
 static int install_syscall_filter(const int sock, const char *tls_psk_keyfile, const char *path)
 {
-	int rc;
+	int rc = -1;
+	scmp_filter_ctx ctx;
 
 #ifdef DEBUG_SECCOMP
-	rc = seccomp_init(SCMP_ACT_TRAP);
+	ctx = seccomp_init(SCMP_ACT_TRAP);
 #else
-	rc = seccomp_init(SCMP_ACT_KILL);
+	ctx = seccomp_init(SCMP_ACT_KILL);
 #endif /* DEBUG_SECCOMP */
-	if (rc < 0)
+	if (ctx == NULL)
 		goto failure_scmp;
 	/*
 	 * These are the basic syscalls needed to be able to use
 	 * the syscall-reporter to figure out the rest
 	 */
-      	seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(write), 0);
+	seccomp_rule_add(ctx,SCMP_ACT_ALLOW, SCMP_SYS(write), 0);
 #ifdef DEBUG_SECCOMP
-	seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(rt_sigreturn), 0);
+	seccomp_rule_add(ctx,SCMP_ACT_ALLOW, SCMP_SYS(rt_sigreturn), 0);
 # ifdef __NR_sigreturn
-	seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(sigreturn), 0);
+	seccomp_rule_add(ctx,SCMP_ACT_ALLOW, SCMP_SYS(sigreturn), 0);
 # endif
 #endif /* DEBUG_SECCOMP */
-	seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(exit), 0);
-	seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(exit_group), 0);
+	seccomp_rule_add(ctx,SCMP_ACT_ALLOW, SCMP_SYS(exit), 0);
+	seccomp_rule_add(ctx,SCMP_ACT_ALLOW, SCMP_SYS(exit_group), 0);
 
 	/*
 	 * Network related syscalls.
 	 */
-	seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(read), 0);
-	seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(select), 0);
+	seccomp_rule_add(ctx,SCMP_ACT_ALLOW, SCMP_SYS(read), 0);
+	seccomp_rule_add(ctx,SCMP_ACT_ALLOW, SCMP_SYS(select), 0);
 	if (sock)
 		/* Allow accept() only for the listening socket */
-		seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(accept), 1,
+		seccomp_rule_add(ctx,SCMP_ACT_ALLOW, SCMP_SYS(accept), 1,
 				 SCMP_A0(SCMP_CMP_EQ, sock));
-	seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(sendto), 0);
+	seccomp_rule_add(ctx,SCMP_ACT_ALLOW, SCMP_SYS(sendto), 0);
 	if (path[0] &&
 	    strncmp(path, "tcp://", strlen("tcp://")) == 0) {
 		/* TCP socket - not needed for TLS */
-		seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(recvfrom), 0);
+		seccomp_rule_add(ctx,SCMP_ACT_ALLOW, SCMP_SYS(recvfrom), 0);
 	}
 
 	/*
 	 * These are probably pthreads-related.
 	 */
-	seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(mmap), 0);
-	seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(munmap), 0);
-	seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(mprotect), 0);
-	seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(clone), 0);
-	seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(set_robust_list), 0);
-	seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(madvise), 0);
-	seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(munlock), 0);
+	seccomp_rule_add(ctx,SCMP_ACT_ALLOW, SCMP_SYS(mmap), 0);
+	seccomp_rule_add(ctx,SCMP_ACT_ALLOW, SCMP_SYS(munmap), 0);
+	seccomp_rule_add(ctx,SCMP_ACT_ALLOW, SCMP_SYS(mprotect), 0);
+	seccomp_rule_add(ctx,SCMP_ACT_ALLOW, SCMP_SYS(clone), 0);
+	seccomp_rule_add(ctx,SCMP_ACT_ALLOW, SCMP_SYS(set_robust_list), 0);
+	seccomp_rule_add(ctx,SCMP_ACT_ALLOW, SCMP_SYS(madvise), 0);
+	seccomp_rule_add(ctx,SCMP_ACT_ALLOW, SCMP_SYS(munlock), 0);
 
 	/*
 	 * Both pthreads (? file is "/sys/devices/system/cpu/online") and TLS-PSK open files.
 	 */
-	seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(open), 1,
+	seccomp_rule_add(ctx,SCMP_ACT_ALLOW, SCMP_SYS(open), 1,
 			 SCMP_A1(SCMP_CMP_EQ, O_RDONLY | O_CLOEXEC));
 
-	seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(close), 0);
+	seccomp_rule_add(ctx,SCMP_ACT_ALLOW, SCMP_SYS(close), 0);
 
 	/*
 	 * UNIX domain socket
@@ -119,43 +120,43 @@ static int install_syscall_filter(const int sock, const char *tls_psk_keyfile, c
 	if (path[0] &&
 	    strncmp(path, "tcp://", strlen("tcp://")) != 0 &&
 	    strncmp(path, "tls://", strlen("tls://")) != 0) {
-		seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(unlink), 0);
+		seccomp_rule_add(ctx,SCMP_ACT_ALLOW, SCMP_SYS(unlink), 0);
 	}
 
 	/*
 	 * Allow spawned threads to initialize a new seccomp policy (subset of this).
 	 */
-	seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(prctl), 0);
+	seccomp_rule_add(ctx,SCMP_ACT_ALLOW, SCMP_SYS(prctl), 0);
 
 	/*
 	 * SoftHSM 1.3.0 required syscalls
 	 */
-	seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(getcwd), 0);
-	seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(stat), 0);
-	seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(open), 0);
-	seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(fcntl), 0);
-	seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(fstat), 0);
-	seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(lseek), 0);
-	seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(access), 0);
-	seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(fsync), 0);
-	seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(unlink), 0);
-	seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(ftruncate), 0);
-	seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(select), 0);
-	seccomp_rule_add(SCMP_ACT_ALLOW, SCMP_SYS(futex), 0);
+	seccomp_rule_add(ctx,SCMP_ACT_ALLOW, SCMP_SYS(getcwd), 0);
+	seccomp_rule_add(ctx,SCMP_ACT_ALLOW, SCMP_SYS(stat), 0);
+	seccomp_rule_add(ctx,SCMP_ACT_ALLOW, SCMP_SYS(open), 0);
+	seccomp_rule_add(ctx,SCMP_ACT_ALLOW, SCMP_SYS(fcntl), 0);
+	seccomp_rule_add(ctx,SCMP_ACT_ALLOW, SCMP_SYS(fstat), 0);
+	seccomp_rule_add(ctx,SCMP_ACT_ALLOW, SCMP_SYS(lseek), 0);
+	seccomp_rule_add(ctx,SCMP_ACT_ALLOW, SCMP_SYS(access), 0);
+	seccomp_rule_add(ctx,SCMP_ACT_ALLOW, SCMP_SYS(fsync), 0);
+	seccomp_rule_add(ctx,SCMP_ACT_ALLOW, SCMP_SYS(unlink), 0);
+	seccomp_rule_add(ctx,SCMP_ACT_ALLOW, SCMP_SYS(ftruncate), 0);
+	seccomp_rule_add(ctx,SCMP_ACT_ALLOW, SCMP_SYS(select), 0);
+	seccomp_rule_add(ctx,SCMP_ACT_ALLOW, SCMP_SYS(futex), 0);
 
 #ifdef DEBUG_SECCOMP
 	/* Dumps the generated BPF rules in sort-of human readable syntax. */
-	seccomp_export_pfc(STDERR_FILENO);
+	seccomp_export_pfc(ctx,STDERR_FILENO);
 
 	/* Print the name of syscalls stopped by seccomp. Should not be used in production. */
         if (install_syscall_reporter())
                 return 1;
 #endif /* DEBUG_SECCOMP */
 
-	rc = seccomp_load();
+	rc = seccomp_load(ctx);
 	if (rc < 0)
 		goto failure_scmp;
-	seccomp_release();
+	seccomp_release(ctx);
 
 	return 0;
 

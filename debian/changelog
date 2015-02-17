@@ -1,3 +1,10 @@
+pkcs11-proxy (0.4-1ubuntu3) trusty; urgency=medium
+
+  [ Klaus Darilion ]
+  * Update seccomp usage to match Ubuntu 14.04.
+
+ -- Fredrik Thulin <fredrik@thulin.net>  Tue, 17 Feb 2015 19:20:13 +0100
+
 pkcs11-proxy (0.4-1ubuntu2) precise; urgency=low
 
   * Support IPv6 and connect-fallback through getaddrinfo()
@@ -9,7 +16,7 @@ pkcs11-proxy (0.4-1ubuntu2) precise; urgency=low
 
 pkcs11-proxy (0.4-1ubuntu1) precise; urgency=low
 
-  * disable debugging by default 
+  * disable debugging by default
   * use syslog instead of stderr unless DEBUG_OUTPUT is 1
 
  -- Leif Johansson <leifj@sunet.se>  Tue, 04 Sep 2012 15:58:45 +0200
