@@ -1,4 +1,4 @@
-cmake_minimum_required (VERSION 2.4)
+cmake_minimum_required (VERSION 2.8)
 
 if(COMMAND cmake_policy)
       cmake_policy(SET CMP0003 NEW)
@@ -36,10 +36,24 @@ endif (WIN32)
 target_link_libraries (pkcs11-proxy pthread ssl crypto)
 target_link_libraries (pkcs11-daemon dl pthread ssl crypto seccomp)
 
-install_targets (/lib pkcs11-proxy)
-install_targets (/bin pkcs11-daemon)
+#install_targets (/lib pkcs11-proxy)
+#install_targets (/bin pkcs11-daemon)
+
+install(TARGETS pkcs11-proxy DESTINATION /usr/lib COMPONENT proxy)
+install(TARGETS pkcs11-daemon DESTINATION /usr/bin COMPONENT daemon)
 
 add_custom_command(
    OUTPUT syscall-names.h 
    COMMAND ${CMAKE_SOURCE_DIR}/mksyscalls.sh
    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
+
+
+set(CPACK_PACKAGE_VERSION_MAJOR "0")
+set(CPACK_PACKAGE_VERSION_MINOR "4")
+set(CPACK_PACKAGE_VERSION_PATCH "enovation")
+set(CPACK_SYSTEM_NAME, "debian")
+set(CPACK_GENERATOR "DEB")
+set(CPACK_DEBIAN_PACKAGE_MAINTAINER "woltere@xs4all.nl")
+set(CPACK_DEBIAN_PACKAGE_ARCHITECTURE "amd64")
+set(CPACK_DEB_COMPONENT_INSTALL 1)
+include(CPack)
