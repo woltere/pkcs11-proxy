@@ -53,12 +53,15 @@
 #include <stdio.h>
 #include <syslog.h>
 
+#ifdef SECCOMP
 #include <seccomp.h>
 //#include "seccomp-bpf.h"
 #ifdef DEBUG_SECCOMP
 # include "syscall-reporter.h"
 #endif /* DEBUG_SECCOMP */
 #include <fcntl.h> /* for seccomp init */
+#endif
+
 #include <sys/mman.h>
 
 /* Where we dispatch the calls to */
@@ -106,7 +109,9 @@ static pthread_mutex_t pkcs11_dispatchers_mutex = PTHREAD_MUTEX_INITIALIZER;
 /* To be able to call C_Finalize from call_uninit. */
 static CK_RV rpc_C_Finalize(CallState *);
 
+#ifdef SECCOMP
 static int _install_dispatch_syscall_filter(int use_tls);
+#endif
 
 /* -----------------------------------------------------------------------------
  * LOGGING and DEBUGGING
@@ -2307,9 +2312,11 @@ static void *run_dispatch_thread(void *arg)
 	CallState *cs = arg;
 	assert(cs->sock != -1);
 
+#ifdef SECCOMP
 	if (_install_dispatch_syscall_filter((cs->tls != NULL)))
 		return NULL;
-
+#endif
+	
 	run_dispatch_loop(cs);
 
 	/* The thread closes the socket and marks as done */
@@ -2649,6 +2656,7 @@ void gck_rpc_layer_uninitialize(void)
  * Reduce the syscalls allowed to a subset of the syscalls allowed for
  * the parent thread.
  */
+#ifdef SECCOMP
 static int _install_dispatch_syscall_filter(int use_tls)
 {
 	int rc = -1;
@@ -2727,3 +2735,4 @@ failure_scmp:
 	gck_rpc_warn("Seccomp filter initialization failed, errno = %u\n", errno);
 	return errno;
 }
+#endif

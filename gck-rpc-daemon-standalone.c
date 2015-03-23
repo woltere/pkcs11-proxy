@@ -46,6 +46,7 @@
 
 #define SOCKET_PATH "tcp://127.0.0.1"
 
+#ifdef SECCOMP
 #include <seccomp.h>
 //#include "seccomp-bpf.h"
 #ifdef DEBUG_SECCOMP
@@ -165,6 +166,7 @@ failure_scmp:
 	fprintf(stderr, "Seccomp filter initialization failed, errno = %u\n", errno);
 	return errno;
 }
+#endif
 
 
 #if 0
@@ -305,9 +307,11 @@ int main(int argc, char *argv[])
 	 * we expect to call from here on. Anything not whitelisted will cause the
 	 * process to terminate.
 	 */
+#ifdef SECCOMP	 
         if (install_syscall_filter(sock, tls_psk_keyfile, path))
         	return 1;
-
+#endif
+        
         if (mode == GCP_RPC_DAEMON_MODE_INETD) {
            gck_rpc_layer_inetd(funcs);
         } else if (mode == GCP_RPC_DAEMON_MODE_SOCKET) {
