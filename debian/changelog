@@ -1,3 +1,11 @@
+pkcs11-proxy (0.4-1ubuntu4~1.gbp5a9262) trusty; urgency=medium
+
+  ** SNAPSHOT build @5a92628c64a2087b9c068daf14ce805e55946057 **
+
+  * debian updates
+
+ -- Leif Johansson <leifj@sunet.se>  Fri, 17 Jul 2015 11:02:03 +0200
+
 pkcs11-proxy (0.4-1ubuntu3) trusty; urgency=medium
 
   [ Klaus Darilion ]
