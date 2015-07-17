@@ -210,6 +210,7 @@ gck_rpc_has_ulong_parameter(CK_ATTRIBUTE_TYPE type)
 	case CKA_KEY_TYPE:
 	case CKA_CERTIFICATE_TYPE:
 	case CKA_HW_FEATURE_TYPE:
+        case CKA_MODULUS_BITS:
 		return 1;
 	default:
 		return 0;
