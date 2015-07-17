@@ -46,15 +46,19 @@
 
 #define SOCKET_PATH "tcp://127.0.0.1"
 
+#ifdef SECCOMP
 #include <seccomp.h>
 //#include "seccomp-bpf.h"
 #ifdef DEBUG_SECCOMP
 # include "syscall-reporter.h"
 #endif /* DEBUG_SECCOMP */
 #include <fcntl.h> /* for seccomp init */
+#endif /* SECCOMP */
+
 
 static int install_syscall_filter(const int sock, const char *tls_psk_keyfile, const char *path)
 {
+#ifdef SECCOMP
 	int rc = -1;
 	scmp_filter_ctx ctx;
 
@@ -164,6 +168,9 @@ failure_scmp:
 	errno = -rc;
 	fprintf(stderr, "Seccomp filter initialization failed, errno = %u\n", errno);
 	return errno;
+#else /* SECCOMP */
+        return 0;
+#endif /* SECCOMP */
 }
 
 
