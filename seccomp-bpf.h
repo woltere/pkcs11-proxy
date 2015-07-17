@@ -51,6 +51,7 @@ struct seccomp_data {
 #define syscall_nr (offsetof(struct seccomp_data, nr))
 #define arch_nr (offsetof(struct seccomp_data, arch))
 
+#ifdef SECCOMP
 #if defined(__i386__)
 # define REG_SYSCALL	REG_EAX
 # define ARCH_NR	AUDIT_ARCH_I386
@@ -62,6 +63,7 @@ struct seccomp_data {
 # define REG_SYSCALL	0
 # define ARCH_NR	0
 #endif
+#endif /* SECCOMP */
 
 #define VALIDATE_ARCHITECTURE \
 	BPF_STMT(BPF_LD+BPF_W+BPF_ABS, arch_nr), \
