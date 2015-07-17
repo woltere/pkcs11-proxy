@@ -33,6 +33,7 @@ static void write_uint(char *buf, unsigned int val)
 
 static void reporter(int nr, siginfo_t *info, void *void_context)
 {
+#ifdef SECCOMP
 	char buf[128];
 	ucontext_t *ctx = (ucontext_t *)(void_context);
 	unsigned int syscall;
@@ -52,10 +53,12 @@ static void reporter(int nr, siginfo_t *info, void *void_context)
 	strcat(buf, "\n");
 	write(STDERR_FILENO, buf, strlen(buf));
 	_exit(1);
+#endif
 }
 
 int install_syscall_reporter(void)
 {
+#ifdef SECCOMP
 	struct sigaction act;
 	sigset_t mask;
 	memset(&act, 0, sizeof(act));
@@ -72,5 +75,6 @@ int install_syscall_reporter(void)
 		perror("sigprocmask");
 		return -1;
 	}
+#endif
 	return 0;
 }

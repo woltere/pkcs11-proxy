@@ -53,12 +53,14 @@
 #include <stdio.h>
 #include <syslog.h>
 
+#ifdef SECCOMP
 #include <seccomp.h>
 //#include "seccomp-bpf.h"
 #ifdef DEBUG_SECCOMP
 # include "syscall-reporter.h"
 #endif /* DEBUG_SECCOMP */
 #include <fcntl.h> /* for seccomp init */
+#endif /* SECCOMP */
 #include <sys/mman.h>
 
 /* Where we dispatch the calls to */
@@ -2651,6 +2653,7 @@ void gck_rpc_layer_uninitialize(void)
  */
 static int _install_dispatch_syscall_filter(int use_tls)
 {
+#ifdef SECCOMP
 	int rc = -1;
 	scmp_filter_ctx ctx;
 
@@ -2726,4 +2729,7 @@ failure_scmp:
 	errno = -rc;
 	gck_rpc_warn("Seccomp filter initialization failed, errno = %u\n", errno);
 	return errno;
+#else /* SECCOMP */
+        return 0;
+#endif /* SECCOMP */
 }
